@@ -614,12 +614,18 @@ def _norm_station(s):
     except (TypeError, ValueError):
         lat = lon = None
     status = str(s.get("status", "")).upper()
-    level = "danger" if "DANGER" in status else "warning" if "WARNING" in status else "normal"
+    # statuses: BELOW WARNING LEVEL / WARNING / ABOVE WARNING LEVEL / DANGER
+    if status.startswith("DANGER") or "ABOVE DANGER" in status:
+        level = "danger"
+    elif status.startswith("WARNING") or "ABOVE WARNING" in status:
+        level = "warning"
+    else:
+        level = "normal"
     wl = _station_level(s)
     suspect = wl is not None and wl > 100  # faulty sensor (e.g. 100008.5 m seen live)
     if suspect:
         wl = None
-    return {"name": _station_name(s), "station_index": s.get("stationIndex"),
+    return {"name": _station_name(s).strip(), "station_index": s.get("stationIndex"),
             "lat": lat, "lon": lon, "water_level": wl,
             "sensor_suspect": suspect,
             "status": status or "UNKNOWN", "level": level,
