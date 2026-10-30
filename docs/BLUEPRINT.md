@@ -15,6 +15,12 @@
 - **Frontend**: district picker is now a province-grouped dropdown; risk table defaults to "needs attention" (moderate+) with a show-all-77 toggle, scrollable with sticky header; forecast header names the selected district; stat card reads "Districts monitored: 77".
 - New endpoints: `/api/districts` (alias `/api/cities` kept), `/api/weather?district=<id>` (alias `?city=` kept).
 
+### v0.4 changelog (2026-10-30, "make the Planned badges real")
+- **DHM river gauges LIVE** (`/api/rivers`): reverse-engineered DHM's hydrology.gov.np real-time feed (socket.io `/gss/socket.io`, `client_request` → `river_watch`/`rainfall_watch` events); engine.io polling client in pure httpx; 15-min cache. New "Live River Gauges" section on the dashboard.
+- **Incident reports LIVE** (`/api/incidents`): GDACS global disaster API filtered to Nepal (free, no key) — e.g. the 2026-08-26 Red-alert Bhotekoshi-Trishuli flood. New "Disaster Incidents" section with GDACS report links.
+- **Sentinel-2 LIVE** (`/api/glof/satellite`): Copernicus OData (free, no key) — latest low-cloud (<30%, fallback <60%) Sentinel-2 scene per priority lake; shown on each GLOF card ("last clear satellite view"). Pixel-level NDWI change detection stays v2.
+- **Source health** (`/api/sources/status`): every upstream probed from the production server; rendered as live dots in Data Sources. BIPAD confirmed unreachable from production too → line now reads Planned with the honest reason; DHM + GDACS used directly instead.
+
 ---
 
 ## 1. Mission
@@ -159,12 +165,12 @@ with feedback loops for verification.
 |---|---|---|---|---|
 | USGS Earthquake Hazards Program | Real-time global earthquakes (GeoJSON feeds) | Free | None | ✅ LIVE in prototype |
 | Open-Meteo | Current + 16-day forecast, hourly precipitation | Free | None | ✅ LIVE in prototype |
-| BIPAD (bipadportal.gov.np/api) | Nepal incidents, DHM rain/river gauges, NEMRC quakes | Free | None (public) | ⚠️ Documented; unreachable from sandbox — adapter stubbed, production integration planned |
+| BIPAD (bipadportal.gov.np/api) | Nepal incidents, DHM rain/river gauges, NEMRC quakes | Free | None (public) | ❌ Unreachable from sandbox AND production (probed) — DHM direct + GDACS used instead |
 | DHM Nepal (via BIPAD) | River water levels, rainfall stations, flood forecast | Free | Via BIPAD | ⚠️ Via BIPAD integration |
 | NEMRC (seismonepal.gov.np) | Nepal earthquake catalog (ML events USGS misses) | Free | None (scraped) | ✅ LIVE in v0.2 (`/api/earthquakes/nepal`) |
 | ICIMOD + UNDP + GoN (2026 PDGL assessment) | 47 dangerous glacial lakes (21 Nepal / 25 Tibet / 1 India); Sanjeevani priority lakes | Free | Published | ✅ LIVE in v0.2 (verified registry, `/api/glof/lakes` + `/api/glof/summary`) |
 | IOM + MoHA (2013, Nepal Gazette) | 83 designated open spaces / shelters | Free | Published | ✅ LIVE in v0.2 (verified registry, `/api/shelters`) |
-| DHM hydrology.gov.np (socket.io `/gss/socket.io`) | Real-time river water levels (river_watch / rainfall_watch) | Free | None (WS) | ⚠️ Reverse-engineered; sandbox proxy blocks WS POSTs — production integration planned |
+| DHM hydrology.gov.np (socket.io `/gss/socket.io`) | Real-time river water levels (river_watch / rainfall_watch) | Free | None (WS) | ✅ LIVE in v0.4 (`/api/rivers`) |
 | Sentinel-2 / Copernicus | Lake area change detection | Free | Account | 🔜 v2 |
 | GDACS | Global disaster alerts (RSS/API) | Free | None | 🔜 v1 (backup feed) |
 | Own messaging API | SMS/WhatsApp/RCS + OTP dispatch | Free (console) / provider rates | API key | ✅ Adapter in prototype (console), live keys = production step |

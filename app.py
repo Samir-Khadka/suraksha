@@ -674,6 +674,7 @@ async def fetch_dhm_rivers():
         rain = ev.get("rainfall_watch") or []
         result = {"stations": stations, "station_count": len(stations),
                   "rainfall_stations": len(rain) if isinstance(rain, list) else 0,
+                  "events_seen": sorted(ev.keys()),
                   "data_label": "live", "source": "DHM hydrology.gov.np"}
         cache_set("dhm", result, 900)
         _stale["dhm"] = result
