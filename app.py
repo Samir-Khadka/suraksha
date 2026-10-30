@@ -680,6 +680,9 @@ async def fetch_dhm_rivers():
             return []
         raw = _pick("river_watch", "river_test", "river", "rivers")
         stations = [_norm_station(s) for s in raw if isinstance(s, dict)]
+        if not stations:
+            # Never cache or label an empty feed as live — the WS gave nothing.
+            raise RuntimeError(f"DHM feed connected but returned no station data (events: {sorted(ev.keys())})")
         rain = _pick("rainfall_watch", "rainfall_test", "rainfall", "rain")
         result = {"stations": stations, "station_count": len(stations),
                   "rainfall_stations": len(rain) if isinstance(rain, list) else 0,
