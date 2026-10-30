@@ -43,6 +43,7 @@
   .badge{display:inline-block; font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:999px;
     text-transform:uppercase; letter-spacing:.5px; vertical-align:middle;}
   .badge.live{background:#dcfce7; color:#166534;}
+  .badge.verified{background:#dbeafe; color:#1e40af;}
   .badge.model{background:#fef3c7; color:#92400e;}
   .badge.sample{background:#e7e5e4; color:#57534e;}
   .lvl{font-weight:700; padding:3px 12px; border-radius:999px; color:#fff; font-size:.78rem; text-transform:capitalize;}
@@ -99,14 +100,15 @@
 
   <section>
     <h2>🗺️ <span data-i18n="liveMap">Live Hazard Map</span>
-      <span class="badge live">Live</span> <span class="badge model">Model</span> <span class="badge sample">Sample</span>
+      <span class="badge live">Live</span> <span class="badge verified">Verified</span> <span class="badge model">Model</span>
     </h2>
     <div id="map"></div>
     <div class="legend">
       <span><span class="dot" style="background:#dc2626"></span><span data-i18n="lgQuake">Earthquake (size = magnitude)</span></span>
+      <span><span class="dot" style="background:#7c3aed"></span><span data-i18n="lgNemrc">Nepal quakes (NEMRC)</span></span>
       <span><span class="dot" style="background:#6d28d9"></span><span data-i18n="lgCity">City risk</span></span>
-      <span><span class="dot" style="background:#0284c7"></span><span data-i18n="lgLake">Glacial lake (sample)</span></span>
-      <span><span class="dot" style="background:#16a34a"></span><span data-i18n="lgShelter">Shelter (sample)</span></span>
+      <span><span class="dot" style="background:#0284c7"></span><span data-i18n="lgLake">Glacial lake (verified)</span></span>
+      <span><span class="dot" style="background:#16a34a"></span><span data-i18n="lgShelter">Shelter (verified)</span></span>
     </div>
   </section>
 
@@ -138,12 +140,14 @@
   </section>
 
   <section>
-    <h2>🏔️ <span data-i18n="glof">GLOF Watch — Glacial Lakes</span> <span class="badge sample">Sample</span></h2>
+    <h2>🏔️ <span data-i18n="glof">GLOF Watch — Glacial Lakes</span> <span class="badge verified">Verified</span></h2>
+    <div class="card" id="glofSummary" style="margin-bottom:12px;"></div>
     <div class="grid cards4" id="glofGrid"></div>
   </section>
 
   <section>
-    <h2>⛺ <span data-i18n="shelters">Emergency Shelters</span> <span class="badge sample">Sample</span></h2>
+    <h2>⛺ <span data-i18n="shelters">Emergency Shelters</span> <span class="badge verified">Verified</span></h2>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;" data-i18n="shelterNote">83 open spaces designated by IOM + Ministry of Home Affairs (2013), Nepal Gazette. Coordinates approximate.</div>
     <div class="grid cards4" id="shelterGrid"></div>
   </section>
 
@@ -157,13 +161,16 @@
     <div class="card" style="font-size:.88rem;line-height:2;">
       <div>🛰️ <b>USGS Earthquake Hazards Program</b> — <span class="badge live">Live</span> <span data-i18n="srcUsgs">real-time global earthquake feed, no key needed</span></div>
       <div>🌦️ <b>Open-Meteo</b> — <span class="badge live">Live</span> <span data-i18n="srcMeteo2">current + 16-day forecast, no key needed</span></div>
+      <div>🇳🇵 <b>NEMRC Nepal</b> — <span class="badge live">Live</span> <span data-i18n="srcNemrc">National Earthquake Monitoring & Research Centre catalog</span></div>
+      <div>🏔️ <b>ICIMOD + UNDP</b> — <span class="badge verified">Verified</span> <span data-i18n="srcIcimod">47 potentially dangerous glacial lakes (2026 assessment)</span></div>
+      <div>⛺ <b>IOM + MoHA Nepal</b> — <span class="badge verified">Verified</span> <span data-i18n="srcIom">83 designated open spaces (2013, Nepal Gazette)</span></div>
       <div>🏛️ <b>BIPAD / NDRRMA Nepal</b> — <span class="badge model">Planned</span> <span data-i18n="srcBipad">national disaster portal: DHM river gauges, incident reports (integration ready)</span></div>
       <div>📡 <b>GLOF sensors · Sentinel-2</b> — <span class="badge model">Planned</span> <span data-i18n="srcGlof">lake-level IoT + satellite change detection (v2 roadmap)</span></div>
     </div>
   </section>
 
   <footer>
-    <span data-i18n="footer">Suraksha v0.1 prototype · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·</span>
+    <span data-i18n="footer">Suraksha v0.2 · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·</span>
     <span id="updatedAt"></span>
   </footer>
 </main>
@@ -173,29 +180,29 @@
 let LANG = 'en';
 const I18N = {
   en:{loading:"Loading live data…",tagline:"Nepal Disaster Management & Early Warning System",
-    liveMap:"Live Hazard Map",lgQuake:"Earthquake (size = magnitude)",lgCity:"City risk",lgLake:"Glacial lake (sample)",lgShelter:"Shelter (sample)",
+    liveMap:"Live Hazard Map",lgQuake:"Earthquake (size = magnitude)",lgCity:"City risk",lgLake:"Glacial lake (verified)",lgShelter:"Shelter (verified)",lgNemrc:"Nepal quakes (NEMRC)",
     alerts:"Active Alerts",forecast:"7-Day Weather Forecast",srcMeteo:"Source: Open-Meteo (free, no key)",
     riskTable:"District Risk Overview",thCity:"City",thRain:"Rain 72h",thFlood:"Flood",thSlide:"Landslide",thSeis:"Seismic",thOverall:"Overall",
     modelNote:"Prototype heuristic: 72h forecast rainfall thresholds. Not an official DHM/NDRRMA forecast.",
     glof:"GLOF Watch — Glacial Lakes",shelters:"Emergency Shelters",guides:"What To Do — Safety Guides",sources:"Data Sources",
     srcUsgs:"real-time global earthquake feed, no key needed",srcMeteo2:"current + 16-day forecast, no key needed",
-    srcBipad:"national disaster portal: DHM river gauges, incident reports (integration ready)",
+    srcNemrc:"National Earthquake Monitoring & Research Centre catalog",srcIcimod:"47 potentially dangerous glacial lakes (2026 assessment)",srcIom:"83 designated open spaces (2013, Nepal Gazette)",srcBipad:"national disaster portal: DHM river gauges, incident reports (integration ready)",
     srcGlof:"lake-level IoT + satellite change detection (v2 roadmap)",
-    footer:"Suraksha v0.1 prototype · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·",
+    footer:"Suraksha v0.2 · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·",
     noAlerts:"✅ No active alerts right now. Stay prepared.",cities:"Cities monitored",quakes:"Quakes (30d, M4.5+)",activeAlerts:"Active alerts",lakes:"Lakes watched",
-    downstream:"Downstream",actions:"Do this now",issued:"Issued",source:"Source",updated:"Updated"},
+    downstream:"Downstream",actions:"Do this now",shelterNote:"83 open spaces designated by IOM + Ministry of Home Affairs (2013), Nepal Gazette. Coordinates approximate.",issued:"Issued",source:"Source",updated:"Updated"},
   ne:{loading:"लाइभ डाटा लोड हुँदैछ…",tagline:"नेपाल विपद् व्यवस्थापन तथा पूर्वसूचना प्रणाली",
-    liveMap:"लाइभ जोखिम नक्सा",lgQuake:"भूकम्प (आकार = म्याग्निच्युड)",lgCity:"शहर जोखिम",lgLake:"हिमताल (नमुना)",lgShelter:"आश्रयस्थल (नमुना)",
+    liveMap:"लाइभ जोखिम नक्सा",lgQuake:"भूकम्प (आकार = म्याग्निच्युड)",lgCity:"शहर जोखिम",lgLake:"हिमताल (प्रमाणित)",lgShelter:"आश्रयस्थल (प्रमाणित)",lgNemrc:"नेपाल भूकम्प (NEMRC)",
     alerts:"सक्रिय सतर्कताहरू",forecast:"७-दिने मौसम पूर्वानुमान",srcMeteo:"स्रोत: Open-Meteo (नि:शुल्क)",
     riskTable:"जिल्ला जोखिम विवरण",thCity:"शहर",thRain:"७२घ. वर्षा",thFlood:"बाढी",thSlide:"पहिरो",thSeis:"भूकम्पीय",thOverall:"समग्र",
     modelNote:"प्रोटोटाइप अनुमान: ७२-घण्टे वर्षा थ्रेसहोल्ड। आधिकारिक DHM/NDRRMA पूर्वानुमान होइन।",
     glof:"हिमताल निगरानी",shelters:"आपतकालीन आश्रयस्थल",guides:"के गर्ने — सुरक्षा निर्देशिका",sources:"डाटा स्रोतहरू",
     srcUsgs:"वास्तविक-समय विश्व भूकम्प फिड",srcMeteo2:"हालको + १६-दिने पूर्वानुमान",
-    srcBipad:"राष्ट्रिय विपद् पोर्टल: DHM नदी मापन, घटना रिपोर्ट (एकीकरण तयार)",
+    srcNemrc:"राष्ट्रिय भूकम्प मापन तथा अनुसन्धान केन्द्र",srcIcimod:"४७ सम्भावित खतरनाक हिमताल (२०२६ मूल्याङ्कन)",srcIom:"८३ तोकिएका खुला क्षेत्र (२०१३, नेपाल राजपत्र)",srcBipad:"राष्ट्रिय विपद् पोर्टल: DHM नदी मापन, घटना रिपोर्ट (एकीकरण तयार)",
     srcGlof:"ताल सतह IoT + स्याटेलाइट निगरानी (v2 योजना)",
     footer:"सुरक्षा v0.1 प्रोटोटाइप · जोखिम स्कोर अनुमान मात्र हुन् · वास्तविक आपतकालमा नेपाल प्रहरी १०० मा कल गर्नुहोस् ·",
     noAlerts:"✅ हाल कुनै सक्रिय सतर्कता छैन। तयार रहनुहोस्।",cities:"निगरानी शहर",quakes:"भूकम्प (३०दि, M4.5+)",activeAlerts:"सक्रिय सतर्कता",lakes:"निगरानी ताल",
-    downstream:"तल्लो तटीय",actions:"अहिले यो गर्नुहोस्",issued:"जारी",source:"स्रोत",updated:"अद्यावधिक"}
+    downstream:"तल्लो तटीय",shelterNote:"IOM + गृह मन्त्रालयद्वारा तोकिएका ८३ खुला क्षेत्र (२०१३), नेपाल राजपत्र। निर्देशांक अनुमानित।",actions:"अहिले यो गर्नुहोस्",issued:"जारी",source:"स्रोत",updated:"अद्यावधिक"}
 };
 const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
 const cityName = c => LANG==='ne' ? c.name_ne : c.name_en;
@@ -205,17 +212,18 @@ function toggleLang(){ LANG = LANG==='en' ? 'ne' : 'en';
   renderAll();
 }
 const API = '';
-let DATA = {overview:null, alerts:[], risk:[], quakes:[], weather:{}, glof:[], shelters:[], city:'kathmandu'};
+let DATA = {overview:null, alerts:[], risk:[], quakes:[], nemrc:[], weather:{}, glof:[], glofSummary:null, shelters:[], city:'kathmandu'};
 async function get(p){ const r = await fetch(API+p); if(!r.ok) throw new Error(p+' → '+r.status); return r.json(); }
 const RISK_COLOR = {low:'#16a34a', moderate:'#ca8a04', high:'#ea580c', critical:'#dc2626', unknown:'#a8a29e'};
 </script>
 <script>
-let map, quakeLayer, cityLayer, lakeLayer, shelterLayer;
+let map, quakeLayer, nemrcLayer, cityLayer, lakeLayer, shelterLayer;
 function initMap(){
   map = L.map('map').setView([28.1, 84.2], 7);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     {attribution:'© OpenStreetMap contributors', maxZoom:18}).addTo(map);
   quakeLayer = L.layerGroup().addTo(map);
+  nemrcLayer = L.layerGroup().addTo(map);
   cityLayer = L.layerGroup().addTo(map);
   lakeLayer = L.layerGroup().addTo(map);
   shelterLayer = L.layerGroup().addTo(map);
@@ -223,7 +231,7 @@ function initMap(){
 function depthColor(d){ return d==null?'#f59e0b': d<70?'#f59e0b': d<300?'#ea580c':'#7c2d12'; }
 
 function renderMap(){
-  quakeLayer.clearLayers(); cityLayer.clearLayers(); lakeLayer.clearLayers(); shelterLayer.clearLayers();
+  quakeLayer.clearLayers(); nemrcLayer.clearLayers(); cityLayer.clearLayers(); lakeLayer.clearLayers(); shelterLayer.clearLayers();
   (DATA.quakes||[]).slice(0,120).forEach(q=>{
     if(q.mag==null) return;
     const r = Math.max(4, q.mag*3.2);
@@ -231,6 +239,14 @@ function renderMap(){
       fillColor:depthColor(q.depth_km),fillOpacity:.55})
      .bindPopup(`<b>M${q.mag} — ${q.place||''}</b><br>${q.time.slice(0,16).replace('T',' ')} UTC<br>Depth: ${q.depth_km} km${q.in_nepal?'<br><b>In Nepal</b>':''}${q.url?`<br><a href="${q.url}" target="_blank">USGS</a>`:''}`)
      .addTo(quakeLayer);
+  });
+  (DATA.nemrc||[]).forEach(q=>{
+    if(q.mag==null) return;
+    const r = Math.max(5, q.mag*3.4);
+    L.circleMarker([q.lat,q.lon],{radius:r,color:'#7c3aed',weight:2,
+      fillColor:'#7c3aed',fillOpacity:.6})
+     .bindPopup(`<b>M${q.mag} — ${q.place}</b> <span class="badge live">Live</span><br>${q.time.slice(0,16).replace('T',' ')} UTC<br>${LANG==='ne'?'स्रोत':'Source'}: NEMRC`)
+     .addTo(nemrcLayer);
   });
   const riskById = {}; (DATA.risk||[]).forEach(x=>riskById[x.city.id]=x);
   Object.values(DATA.weather).forEach(w=>{
@@ -243,12 +259,12 @@ function renderMap(){
   });
   (DATA.glof||[]).forEach(l=>{
     L.marker([l.lat,l.lon],{icon:L.divIcon({className:'',html:'<div style="background:#0284c7;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid #fff;">◈</div>',iconSize:[22,22]})})
-     .bindPopup(`<b>${LANG==='ne'?l.name_ne:l.name_en}</b> <span class="badge sample">Sample</span><br>${LANG==='ne'?l.status_ne:l.status_en}<br>${t('downstream')}: ${l.downstream_en}`)
+     .bindPopup(`<b>${LANG==='ne'?l.name_ne:l.name_en}</b> <span class="badge verified">Verified</span><br>${LANG==='ne'?l.status_ne:l.status_en}<br>${t('downstream')}: ${l.downstream_en}`)
      .addTo(lakeLayer);
   });
   (DATA.shelters||[]).forEach(s=>{
     L.marker([s.lat,s.lon],{icon:L.divIcon({className:'',html:'<div style="background:#16a34a;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid #fff;">⛺</div>',iconSize:[20,20]})})
-     .bindPopup(`<b>${LANG==='ne'?s.name_ne:s.name_en}</b> <span class="badge sample">Sample</span><br>${LANG==='ne'?s.district_ne:s.district_en}<br>${s.capacity_en}`)
+     .bindPopup(`<b>${LANG==='ne'?s.name_ne:s.name_en}</b> <span class="badge verified">Verified</span><br>${LANG==='ne'?s.district_ne:s.district_en}<br>${s.fact_en}`)
      .addTo(shelterLayer);
   });
 }
@@ -260,7 +276,7 @@ function renderStats(){
     <div class="card"><h3>${t('activeAlerts')}</h3><div class="stat">${o.active_alerts} <small>⚠️${sev.warning||0} 🟡${sev.watch||0}</small></div></div>
     <div class="card"><h3>${t('quakes')}</h3><div class="stat">${o.earthquakes_30d_m45}</div></div>
     <div class="card"><h3>${t('cities')}</h3><div class="stat">${o.cities_monitored}</div></div>
-    <div class="card"><h3>${t('lakes')}</h3><div class="stat">${o.glof_lakes_watched} <small>sample</small></div></div>`;
+    <div class="card"><h3>${t('lakes')}</h3><div class="stat">${o.glof_lakes_watched} <small>verified</small></div></div>`;
 }
 
 function renderBanner(){
@@ -324,16 +340,25 @@ function renderRisk(){
 }
 
 function renderGlof(){
+  const s = DATA.glofSummary;
+  if(s) document.getElementById('glofSummary').innerHTML =
+    `<b>47</b> ${LANG==='ne'?'सम्भावित खतरनाक हिमताल':'potentially dangerous glacial lakes'} —
+     ${LANG==='ne'?'नेपालमा':'in Nepal'} <b>21</b> · ${LANG==='ne'?'तिब्बतमा':'in Tibet'} <b>25</b> · ${LANG==='ne'?'भारतमा':'in India'} <b>1</b> ·
+     ${LANG==='ne'?'कोशी':'Koshi'} <b>42</b> · ${LANG==='ne'?'गण्डकी':'Gandaki'} <b>3</b> · ${LANG==='ne'?'कर्णाली':'Karnali'} <b>2</b> ·
+     ${LANG==='ne'?'सन् १९७७ यता':'since 1977'} <b>26+</b> ${LANG==='ne'?'हिमताल विस्फोट':'GLOFs recorded'} ·
+     <span style="color:var(--muted)">${LANG==='ne'?'स्रोत':'Source'}: ICIMOD + UNDP + ${LANG==='ne'?'नेपाल सरकार (२०२६)':'Government of Nepal (2026)'}</span>`;
   document.getElementById('glofGrid').innerHTML = (DATA.glof||[]).map(l=>`
-    <div class="card"><h3>${LANG==='ne'?l.name_ne:l.name_en} <span class="badge sample">Sample</span></h3>
+    <div class="card"><h3>${LANG==='ne'?l.name_ne:l.name_en} <span class="badge verified">Verified</span></h3>
     <div><span class="lvl ${l.level==='warning'?'high':'moderate'}">${LANG==='ne'?l.status_ne:l.status_en}</span></div>
-    <div style="font-size:.82rem;color:var(--muted);margin-top:8px;">${t('downstream')}: ${l.downstream_en}</div></div>`).join('');
+    <div style="font-size:.85rem;margin-top:8px;">${LANG==='ne'?l.fact_ne:l.fact_en}</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:6px;">📍 ${LANG==='ne'?l.district_ne:l.district_en} · ${l.basin_en}${l.coords==='approximate'?' · ~approx':''}</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:2px;">${t('downstream')}: ${l.downstream_en}</div></div>`).join('');
 }
 function renderShelters(){
   document.getElementById('shelterGrid').innerHTML = (DATA.shelters||[]).map(s=>`
-    <div class="card"><h3>⛺ ${LANG==='ne'?s.name_ne:s.name_en} <span class="badge sample">Sample</span></h3>
+    <div class="card"><h3>⛺ ${LANG==='ne'?s.name_ne:s.name_en} <span class="badge verified">Verified</span></h3>
     <div style="font-size:.88rem;">${LANG==='ne'?s.district_ne:s.district_en}</div>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:6px;">${s.capacity_en}</div></div>`).join('');
+    <div style="font-size:.78rem;color:var(--muted);margin-top:6px;">${s.fact_en}</div></div>`).join('');
 }
 const GUIDES = {
   earthquake:{en:'🌍 Earthquake',ne:'🌍 भूकम्प',items_en:['Drop, cover and hold on','Move to open ground after shaking','Expect aftershocks — check gas/power'],
@@ -358,11 +383,11 @@ function renderAll(){ renderStats(); renderBanner(); renderAlerts(); renderCityP
 async function boot(){
   initMap();
   try{
-    const [ov, al, rk, qk, gl, sh] = await Promise.all([
-      get('/api/overview'), get('/api/alerts'), get('/api/risk'),
-      get('/api/earthquakes?days=30&min_magnitude=4.5'), get('/api/glof/lakes'), get('/api/shelters')]);
-    DATA.overview=ov; DATA.alerts=al.alerts; DATA.risk=rk.cities; DATA.quakes=qk.earthquakes;
-    DATA.glof=gl.lakes; DATA.shelters=sh.shelters;
+    const [ov, al, rk, qk, nq, gl, gs, sh] = await Promise.all([get('/api/overview'), get('/api/alerts'), get('/api/risk'),
+      get('/api/earthquakes?days=30&min_magnitude=4.5'), get('/api/earthquakes/nepal').catch(()=>({earthquakes:[]})),
+      get('/api/glof/lakes'), get('/api/glof/summary'), get('/api/shelters')]);
+    DATA.overview=ov; DATA.alerts=al.alerts; DATA.risk=rk.cities; DATA.quakes=qk.earthquakes; DATA.nemrc=nq.earthquakes||[];
+    DATA.glof=gl.lakes; DATA.glofSummary=gs; DATA.shelters=sh.shelters;
     const w = await get('/api/weather/all').catch(()=>null);
     (w ? w.cities : []).forEach(x=>{ DATA.weather[x.city.id]=x; });
     if(!DATA.weather[DATA.city]){
