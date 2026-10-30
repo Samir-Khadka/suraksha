@@ -27,17 +27,86 @@ from pydantic import BaseModel
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ---------------------------------------------------------------- cities ----
-CITIES = [
-    {"id": "kathmandu",  "name_en": "Kathmandu",  "name_ne": "काठमाडौं",  "lat": 27.7172, "lon": 85.3240, "hill": True},
-    {"id": "pokhara",    "name_en": "Pokhara",    "name_ne": "पोखरा",     "lat": 28.2096, "lon": 83.9856, "hill": True},
-    {"id": "biratnagar", "name_en": "Biratnagar", "name_ne": "विराटनगर",  "lat": 26.4525, "lon": 87.2718, "hill": False},
-    {"id": "nepalgunj",  "name_en": "Nepalgunj",  "name_ne": "नेपालगञ्ज", "lat": 28.0500, "lon": 81.6167, "hill": False},
-    {"id": "dhangadhi",  "name_en": "Dhangadhi",  "name_ne": "धनगढी",     "lat": 28.7076, "lon": 80.5845, "hill": False},
-    {"id": "damak",      "name_en": "Damak",      "name_ne": "दमक",        "lat": 26.6500, "lon": 87.7000, "hill": False},
-    {"id": "urlabari",   "name_en": "Urlabari",   "name_ne": "उर्लाबारी", "lat": 26.6636, "lon": 87.7000, "hill": False},
-    {"id": "jomsom",     "name_en": "Jomsom",     "name_ne": "जोमसोम",    "lat": 28.7806, "lon": 83.7222, "hill": True},
-    {"id": "lukla",      "name_en": "Lukla",      "name_ne": "लुक्ला",     "lat": 27.6869, "lon": 86.7297, "hill": True},
+# ------------------------------------------------------------ districts ----
+# All 77 districts of Nepal (headquarters coordinates, province grouping).
+DISTRICTS = [
+    {"id": "bhojpur", "name_en": "Bhojpur", "name_ne": "भोजपुर", "lat": 27.17, "lon": 87.05, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "dhankuta", "name_en": "Dhankuta", "name_ne": "धनकुटा", "lat": 26.98, "lon": 87.34, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "ilam", "name_en": "Ilam", "name_ne": "इलाम", "lat": 26.91, "lon": 87.93, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "jhapa", "name_en": "Jhapa", "name_ne": "झापा", "lat": 26.53, "lon": 88.08, "hill": False, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "khotang", "name_en": "Khotang", "name_ne": "खोटाङ", "lat": 27.21, "lon": 86.8, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "morang", "name_en": "Morang", "name_ne": "मोरङ", "lat": 26.4525, "lon": 87.2718, "hill": False, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "okhaldhunga", "name_en": "Okhaldhunga", "name_ne": "ओखलढुङ्गा", "lat": 27.31, "lon": 86.5, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "panchthar", "name_en": "Panchthar", "name_ne": "पाँचथर", "lat": 27.15, "lon": 87.77, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "sankhuwasabha", "name_en": "Sankhuwasabha", "name_ne": "सङ्खुवासभा", "lat": 27.37, "lon": 87.2, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "solukhumbu", "name_en": "Solukhumbu", "name_ne": "सोलुखुम्बु", "lat": 27.5, "lon": 86.59, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "sunsari", "name_en": "Sunsari", "name_ne": "सुनसरी", "lat": 26.6, "lon": 87.15, "hill": False, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "taplejung", "name_en": "Taplejung", "name_ne": "ताप्लेजुङ", "lat": 27.35, "lon": 87.67, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "terhathum", "name_en": "Terhathum", "name_ne": "तेह्रथुम", "lat": 27.13, "lon": 87.57, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "udayapur", "name_en": "Udayapur", "name_ne": "उदयपुर", "lat": 26.78, "lon": 86.72, "hill": True, "province_en": "Koshi", "province_ne": "कोशी"},
+    {"id": "bara", "name_en": "Bara", "name_ne": "बारा", "lat": 27.03, "lon": 85.03, "hill": False, "province_en": "Madhesh", "province_ne": "मधेश"},
+    {"id": "dhanusha", "name_en": "Dhanusha", "name_ne": "धनुषा", "lat": 26.73, "lon": 85.93, "hill": False, "province_en": "Madhesh", "province_ne": "मधेश"},
+    {"id": "mahottari", "name_en": "Mahottari", "name_ne": "महोत्तरी", "lat": 26.65, "lon": 85.8, "hill": False, "province_en": "Madhesh", "province_ne": "मधेश"},
+    {"id": "parsa", "name_en": "Parsa", "name_ne": "पर्सा", "lat": 27.0, "lon": 84.87, "hill": False, "province_en": "Madhesh", "province_ne": "मधेश"},
+    {"id": "rautahat", "name_en": "Rautahat", "name_ne": "रौतहट", "lat": 26.77, "lon": 85.28, "hill": False, "province_en": "Madhesh", "province_ne": "मधेश"},
+    {"id": "saptari", "name_en": "Saptari", "name_ne": "सप्तरी", "lat": 26.54, "lon": 86.75, "hill": False, "province_en": "Madhesh", "province_ne": "मधेश"},
+    {"id": "sarlahi", "name_en": "Sarlahi", "name_ne": "सर्लाही", "lat": 26.87, "lon": 85.56, "hill": False, "province_en": "Madhesh", "province_ne": "मधेश"},
+    {"id": "siraha", "name_en": "Siraha", "name_ne": "सिराहा", "lat": 26.66, "lon": 86.2, "hill": False, "province_en": "Madhesh", "province_ne": "मधेश"},
+    {"id": "bhaktapur", "name_en": "Bhaktapur", "name_ne": "भक्तपुर", "lat": 27.67, "lon": 85.43, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "chitwan", "name_en": "Chitwan", "name_ne": "चितवन", "lat": 27.68, "lon": 84.43, "hill": False, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "dhading", "name_en": "Dhading", "name_ne": "धादिङ", "lat": 27.9, "lon": 84.9, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "dolakha", "name_en": "Dolakha", "name_ne": "दोलखा", "lat": 27.67, "lon": 86.03, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "kathmandu", "name_en": "Kathmandu", "name_ne": "काठमाडौं", "lat": 27.7172, "lon": 85.324, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "kavrepalanchok", "name_en": "Kavrepalanchok", "name_ne": "काभ्रेपलाञ्चोक", "lat": 27.62, "lon": 85.55, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "lalitpur", "name_en": "Lalitpur", "name_ne": "ललितपुर", "lat": 27.66, "lon": 85.33, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "makwanpur", "name_en": "Makwanpur", "name_ne": "मकवानपुर", "lat": 27.42, "lon": 85.03, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "nuwakot", "name_en": "Nuwakot", "name_ne": "नुवाकोट", "lat": 27.89, "lon": 85.16, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "ramechhap", "name_en": "Ramechhap", "name_ne": "रामेछाप", "lat": 27.39, "lon": 86.06, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "rasuwa", "name_en": "Rasuwa", "name_ne": "रसुवा", "lat": 28.1, "lon": 85.29, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "sindhuli", "name_en": "Sindhuli", "name_ne": "सिन्धुली", "lat": 27.25, "lon": 85.97, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "sindhupalchok", "name_en": "Sindhupalchok", "name_ne": "सिन्धुपाल्चोक", "lat": 27.77, "lon": 85.71, "hill": True, "province_en": "Bagmati", "province_ne": "बागमती"},
+    {"id": "baglung", "name_en": "Baglung", "name_ne": "बागलुङ", "lat": 28.27, "lon": 83.59, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "gorkha", "name_en": "Gorkha", "name_ne": "गोरखा", "lat": 28.0, "lon": 84.63, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "kaski", "name_en": "Kaski", "name_ne": "कास्की", "lat": 28.2096, "lon": 83.9856, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "lamjung", "name_en": "Lamjung", "name_ne": "लमजुङ", "lat": 28.23, "lon": 84.38, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "manang", "name_en": "Manang", "name_ne": "मनाङ", "lat": 28.65, "lon": 84.24, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "mustang", "name_en": "Mustang", "name_ne": "मुस्ताङ", "lat": 28.7806, "lon": 83.7222, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "myagdi", "name_en": "Myagdi", "name_ne": "म्याग्दी", "lat": 28.34, "lon": 83.56, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "nawalparasi-east", "name_en": "Nawalparasi East", "name_ne": "नवलपरासी पूर्व", "lat": 27.65, "lon": 84.13, "hill": False, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "parbat", "name_en": "Parbat", "name_ne": "पर्वत", "lat": 28.22, "lon": 83.68, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "syangja", "name_en": "Syangja", "name_ne": "स्याङ्जा", "lat": 28.1, "lon": 83.87, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "tanahun", "name_en": "Tanahun", "name_ne": "तनहुँ", "lat": 27.98, "lon": 84.27, "hill": True, "province_en": "Gandaki", "province_ne": "गण्डकी"},
+    {"id": "arghakhanchi", "name_en": "Arghakhanchi", "name_ne": "अर्घाखाँची", "lat": 27.97, "lon": 83.13, "hill": True, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "banke", "name_en": "Banke", "name_ne": "बाँके", "lat": 28.05, "lon": 81.62, "hill": False, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "bardiya", "name_en": "Bardiya", "name_ne": "बर्दिया", "lat": 28.23, "lon": 81.34, "hill": False, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "dang", "name_en": "Dang", "name_ne": "दाङ", "lat": 28.04, "lon": 82.49, "hill": False, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "rukum-east", "name_en": "Rukum East", "name_ne": "पूर्वी रुकुम", "lat": 28.62, "lon": 82.63, "hill": True, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "gulmi", "name_en": "Gulmi", "name_ne": "गुल्मी", "lat": 28.07, "lon": 83.25, "hill": True, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "kapilvastu", "name_en": "Kapilvastu", "name_ne": "कपिलवस्तु", "lat": 27.55, "lon": 83.05, "hill": False, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "nawalparasi-west", "name_en": "Nawalparasi West", "name_ne": "नवलपरासी पश्चिम", "lat": 27.52, "lon": 83.68, "hill": False, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "palpa", "name_en": "Palpa", "name_ne": "पाल्पा", "lat": 27.87, "lon": 83.55, "hill": True, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "pyuthan", "name_en": "Pyuthan", "name_ne": "प्यूठान", "lat": 28.1, "lon": 82.85, "hill": True, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "rolpa", "name_en": "Rolpa", "name_ne": "रोल्पा", "lat": 28.3, "lon": 82.77, "hill": True, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "rupandehi", "name_en": "Rupandehi", "name_ne": "रुपन्देही", "lat": 27.5, "lon": 83.45, "hill": False, "province_en": "Lumbini", "province_ne": "लुम्बिनी"},
+    {"id": "dailekh", "name_en": "Dailekh", "name_ne": "दैलेख", "lat": 28.84, "lon": 81.71, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "dolpa", "name_en": "Dolpa", "name_ne": "डोल्पा", "lat": 28.95, "lon": 82.88, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "humla", "name_en": "Humla", "name_ne": "हुम्ला", "lat": 29.97, "lon": 81.83, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "jajarkot", "name_en": "Jajarkot", "name_ne": "जाजरकोट", "lat": 28.7, "lon": 82.2, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "jumla", "name_en": "Jumla", "name_ne": "जुम्ला", "lat": 29.28, "lon": 82.18, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "kalikot", "name_en": "Kalikot", "name_ne": "कालीकोट", "lat": 29.15, "lon": 81.62, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "mugu", "name_en": "Mugu", "name_ne": "मुगु", "lat": 29.55, "lon": 82.08, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "salyan", "name_en": "Salyan", "name_ne": "सल्यान", "lat": 28.38, "lon": 82.16, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "surkhet", "name_en": "Surkhet", "name_ne": "सुर्खेत", "lat": 28.6, "lon": 81.62, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "rukum-west", "name_en": "Rukum West", "name_ne": "पश्चिम रुकुम", "lat": 28.63, "lon": 82.47, "hill": True, "province_en": "Karnali", "province_ne": "कर्णाली"},
+    {"id": "achham", "name_en": "Achham", "name_ne": "अछाम", "lat": 29.13, "lon": 81.29, "hill": True, "province_en": "Sudurpashchim", "province_ne": "सुदूरपश्चिम"},
+    {"id": "baitadi", "name_en": "Baitadi", "name_ne": "बैतडी", "lat": 29.55, "lon": 80.43, "hill": True, "province_en": "Sudurpashchim", "province_ne": "सुदूरपश्चिम"},
+    {"id": "bajhang", "name_en": "Bajhang", "name_ne": "बझाङ", "lat": 29.55, "lon": 81.2, "hill": True, "province_en": "Sudurpashchim", "province_ne": "सुदूरपश्चिम"},
+    {"id": "bajura", "name_en": "Bajura", "name_ne": "बाजुरा", "lat": 29.43, "lon": 81.35, "hill": True, "province_en": "Sudurpashchim", "province_ne": "सुदूरपश्चिम"},
+    {"id": "dadeldhura", "name_en": "Dadeldhura", "name_ne": "डडेल्धुरा", "lat": 29.3, "lon": 80.59, "hill": True, "province_en": "Sudurpashchim", "province_ne": "सुदूरपश्चिम"},
+    {"id": "darchula", "name_en": "Darchula", "name_ne": "दार्चुला", "lat": 29.85, "lon": 80.55, "hill": True, "province_en": "Sudurpashchim", "province_ne": "सुदूरपश्चिम"},
+    {"id": "doti", "name_en": "Doti", "name_ne": "डोटी", "lat": 29.27, "lon": 80.94, "hill": True, "province_en": "Sudurpashchim", "province_ne": "सुदूरपश्चिम"},
+    {"id": "kailali", "name_en": "Kailali", "name_ne": "कैलाली", "lat": 28.7076, "lon": 80.5814, "hill": False, "province_en": "Sudurpashchim", "province_ne": "सुदूरपश्चिम"},
+    {"id": "kanchanpur", "name_en": "Kanchanpur", "name_ne": "कञ्चनपुर", "lat": 28.92, "lon": 80.34, "hill": False, "province_en": "Sudurpashchim", "province_ne": "सुदूरपश्चिम"},
 ]
 
 # ------------------------------------------- real-data registries (verified) --
@@ -399,8 +468,8 @@ def _npt_hour(iso_ts):
     return dt.astimezone(tz).hour
 
 async def _fetch_weather_openmeteo():
-    lats = ",".join(str(c["lat"]) for c in CITIES)
-    lons = ",".join(str(c["lon"]) for c in CITIES)
+    lats = ",".join(str(c["lat"]) for c in DISTRICTS)
+    lons = ",".join(str(c["lon"]) for c in DISTRICTS)
     url = ("https://api.open-meteo.com/v1/forecast?latitude=" + lats + "&longitude=" + lons +
            "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
@@ -410,19 +479,20 @@ async def _fetch_weather_openmeteo():
         raw = resp.json()
     data = raw if isinstance(raw, list) else [raw]
     out = {}
-    for city, w in zip(CITIES, data):
+    for city, w in zip(DISTRICTS, data):
         out[city["id"]] = {"city": city, "current": w.get("current", {}),
                            "daily": w.get("daily", {}), "data_label": "live",
                            "provider": "Open-Meteo"}
     return out
 
 async def _fetch_weather_met():
+    sem = asyncio.Semaphore(10)
     async with _make_client(60) as client:
-        out = {}
-        for city in CITIES:  # sequential: polite to the free API
-            w = await _fetch_met_city(client, city)
-            out[city["id"]] = w
-    return out
+        async def one(city):
+            async with sem:
+                return await _fetch_met_city(client, city)
+        results = await asyncio.gather(*(one(c) for c in DISTRICTS))
+    return {w["city"]["id"]: w for w in results}
 
 async def fetch_weather():
     """Live forecast for all monitored cities.
@@ -526,7 +596,7 @@ async def compute_risk():
         quakes = []
     now = time.time()
     results = []
-    for city in CITIES:
+    for city in DISTRICTS:
         if weather and city["id"] in weather:
             w = weather[city["id"]]
             daily = w["daily"]
@@ -652,12 +722,13 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "suraksha", "version": "0.1.0",
+    return {"status": "ok", "service": "suraksha", "version": "0.2.0",
             "time": datetime.now(timezone.utc).isoformat()}
 
+@app.get("/api/districts")
 @app.get("/api/cities")
-def cities():
-    return {"cities": CITIES, "data_label": "live"}
+def districts():
+    return {"districts": DISTRICTS, "cities": DISTRICTS, "data_label": "live"}
 
 @app.get("/api/earthquakes")
 async def earthquakes(days: int = Query(30, ge=1, le=30),
@@ -676,16 +747,17 @@ async def earthquakes(days: int = Query(30, ge=1, le=30),
             "source": "USGS Earthquake Hazards Program", "data_label": "live"}
 
 @app.get("/api/weather")
-async def weather(city: str = Query("kathmandu")):
+async def weather(city: str = Query("kathmandu"), district: str = Query(None)):
+    key = district or city
     try:
         data, cached = await fetch_weather()
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(502, f"Open-Meteo unreachable: {str(e)[:150]}")
-    if city not in data:
-        raise HTTPException(404, f"Unknown city '{city}'")
-    w = data[city]
-    return {"city": w["city"], "current": w["current"], "daily": w["daily"],
-            "cached": cached, "source": "Open-Meteo", "data_label": "live"}
+        raise HTTPException(502, f"Weather unreachable: {str(e)[:150]}")
+    if key not in data:
+        raise HTTPException(404, f"Unknown district '{key}'")
+    w = data[key]
+    return {"city": w["city"], "district": w["city"], "current": w["current"], "daily": w["daily"],
+            "cached": cached, "source": w.get("provider", "Open-Meteo"), "data_label": "live"}
 
 @app.get("/api/weather/all")
 async def weather_all():
@@ -693,7 +765,7 @@ async def weather_all():
     try:
         data, cached = await fetch_weather()
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(502, f"Open-Meteo unreachable: {str(e)[:150]}")
+        raise HTTPException(502, f"Weather unreachable: {str(e)[:150]}")
     return {"cities": list(data.values()), "cached": cached,
             "source": "Open-Meteo", "data_label": "live"}
 
@@ -763,7 +835,7 @@ async def overview():
             "active_alerts": len(alerts_list),
             "earthquakes_30d_m45": len(quakes),
             "earthquakes_nemrc": len(nemrc),
-            "cities_monitored": len(CITIES),
+            "districts_monitored": len(DISTRICTS),
             "glof_lakes_watched": len(GLOF_LAKES)}
 
 @app.post("/api/broadcast")

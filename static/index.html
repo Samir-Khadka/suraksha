@@ -118,18 +118,21 @@
   </section>
 
   <section>
-    <h2>🌧️ <span data-i18n="forecast">7-Day Weather Forecast</span> <span class="badge live">Live</span></h2>
-    <div class="pill-row" id="cityPills"></div>
+    <h2>🌧️ <span data-i18n="forecast">7-Day Weather Forecast</span> — <span id="forecastDistrict"></span> <span class="badge live">Live</span></h2>
+    <div style="margin-bottom:10px;"><select id="districtSelect" onchange="selectCity(this.value)"
+        style="font-size:1rem;padding:8px 12px;border-radius:10px;border:1px solid #e9dfc9;background:var(--card);max-width:100%;"></select></div>
     <div class="card"><div id="forecastBody"></div>
       <div class="meta" style="font-size:.75rem;color:var(--muted);margin-top:8px;" data-i18n="srcMeteo">Source: Open-Meteo (free, no key)</div>
     </div>
   </section>
 
   <section>
-    <h2>📊 <span data-i18n="riskTable">District Risk Overview</span> <span class="badge model">Model</span></h2>
-    <div class="card" style="padding:0;overflow-x:auto;">
-      <table><thead><tr>
-        <th data-i18n="thCity">City</th><th data-i18n="thRain">Rain 72h</th>
+    <h2>📊 <span data-i18n="riskTable">District Risk Overview</span> <span class="badge model">Model</span>
+      <button id="riskToggle" onclick="toggleRiskFilter()" class="city-pill" style="margin-left:8px;font-size:.75rem;">Show all 77</button>
+      <span id="riskCount" style="font-size:.8rem;color:var(--muted);margin-left:8px;"></span></h2>
+    <div class="card" style="padding:0;overflow-x:auto;max-height:480px;overflow-y:auto;">
+      <table><thead style="position:sticky;top:0;background:var(--card);z-index:1;"><tr>
+        <th data-i18n="thCity">District</th><th data-i18n="thRain">Rain 72h</th>
         <th data-i18n="thFlood">Flood</th><th data-i18n="thSlide">Landslide</th>
         <th data-i18n="thSeis">Seismic</th><th data-i18n="thOverall">Overall</th>
       </tr></thead><tbody id="riskBody"></tbody></table>
@@ -182,26 +185,26 @@ const I18N = {
   en:{loading:"Loading live data…",tagline:"Nepal Disaster Management & Early Warning System",
     liveMap:"Live Hazard Map",lgQuake:"Earthquake (size = magnitude)",lgCity:"City risk",lgLake:"Glacial lake (verified)",lgShelter:"Shelter (verified)",lgNemrc:"Nepal quakes (NEMRC)",
     alerts:"Active Alerts",forecast:"7-Day Weather Forecast",srcMeteo:"Source: Open-Meteo (free, no key)",
-    riskTable:"District Risk Overview",thCity:"City",thRain:"Rain 72h",thFlood:"Flood",thSlide:"Landslide",thSeis:"Seismic",thOverall:"Overall",
+    riskTable:"District Risk Overview",thCity:"District",thRain:"Rain 72h",thFlood:"Flood",thSlide:"Landslide",thSeis:"Seismic",thOverall:"Overall",
     modelNote:"Prototype heuristic: 72h forecast rainfall thresholds. Not an official DHM/NDRRMA forecast.",
     glof:"GLOF Watch — Glacial Lakes",shelters:"Emergency Shelters",guides:"What To Do — Safety Guides",sources:"Data Sources",
     srcUsgs:"real-time global earthquake feed, no key needed",srcMeteo2:"current + 16-day forecast, no key needed",
     srcNemrc:"National Earthquake Monitoring & Research Centre catalog",srcIcimod:"47 potentially dangerous glacial lakes (2026 assessment)",srcIom:"83 designated open spaces (2013, Nepal Gazette)",srcBipad:"national disaster portal: DHM river gauges, incident reports (integration ready)",
     srcGlof:"lake-level IoT + satellite change detection (v2 roadmap)",
     footer:"Suraksha v0.2 · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·",
-    noAlerts:"✅ No active alerts right now. Stay prepared.",cities:"Cities monitored",quakes:"Quakes (30d, M4.5+)",activeAlerts:"Active alerts",lakes:"Lakes watched",
+    noAlerts:"✅ No active alerts right now. Stay prepared.",cities:"Cities monitored",districts:"Districts monitored",needAttention:"need attention",showAll:"Show all 77",showAttention:"Needs attention only",quakes:"Quakes (30d, M4.5+)",activeAlerts:"Active alerts",lakes:"Lakes watched",
     downstream:"Downstream",actions:"Do this now",shelterNote:"83 open spaces designated by IOM + Ministry of Home Affairs (2013), Nepal Gazette. Coordinates approximate.",issued:"Issued",source:"Source",updated:"Updated"},
   ne:{loading:"लाइभ डाटा लोड हुँदैछ…",tagline:"नेपाल विपद् व्यवस्थापन तथा पूर्वसूचना प्रणाली",
     liveMap:"लाइभ जोखिम नक्सा",lgQuake:"भूकम्प (आकार = म्याग्निच्युड)",lgCity:"शहर जोखिम",lgLake:"हिमताल (प्रमाणित)",lgShelter:"आश्रयस्थल (प्रमाणित)",lgNemrc:"नेपाल भूकम्प (NEMRC)",
     alerts:"सक्रिय सतर्कताहरू",forecast:"७-दिने मौसम पूर्वानुमान",srcMeteo:"स्रोत: Open-Meteo (नि:शुल्क)",
-    riskTable:"जिल्ला जोखिम विवरण",thCity:"शहर",thRain:"७२घ. वर्षा",thFlood:"बाढी",thSlide:"पहिरो",thSeis:"भूकम्पीय",thOverall:"समग्र",
+    riskTable:"जिल्ला जोखिम विवरण",thCity:"जिल्ला",thRain:"७२घ. वर्षा",thFlood:"बाढी",thSlide:"पहिरो",thSeis:"भूकम्पीय",thOverall:"समग्र",
     modelNote:"प्रोटोटाइप अनुमान: ७२-घण्टे वर्षा थ्रेसहोल्ड। आधिकारिक DHM/NDRRMA पूर्वानुमान होइन।",
     glof:"हिमताल निगरानी",shelters:"आपतकालीन आश्रयस्थल",guides:"के गर्ने — सुरक्षा निर्देशिका",sources:"डाटा स्रोतहरू",
     srcUsgs:"वास्तविक-समय विश्व भूकम्प फिड",srcMeteo2:"हालको + १६-दिने पूर्वानुमान",
     srcNemrc:"राष्ट्रिय भूकम्प मापन तथा अनुसन्धान केन्द्र",srcIcimod:"४७ सम्भावित खतरनाक हिमताल (२०२६ मूल्याङ्कन)",srcIom:"८३ तोकिएका खुला क्षेत्र (२०१३, नेपाल राजपत्र)",srcBipad:"राष्ट्रिय विपद् पोर्टल: DHM नदी मापन, घटना रिपोर्ट (एकीकरण तयार)",
     srcGlof:"ताल सतह IoT + स्याटेलाइट निगरानी (v2 योजना)",
     footer:"सुरक्षा v0.1 प्रोटोटाइप · जोखिम स्कोर अनुमान मात्र हुन् · वास्तविक आपतकालमा नेपाल प्रहरी १०० मा कल गर्नुहोस् ·",
-    noAlerts:"✅ हाल कुनै सक्रिय सतर्कता छैन। तयार रहनुहोस्।",cities:"निगरानी शहर",quakes:"भूकम्प (३०दि, M4.5+)",activeAlerts:"सक्रिय सतर्कता",lakes:"निगरानी ताल",
+    noAlerts:"✅ हाल कुनै सक्रिय सतर्कता छैन। तयार रहनुहोस्।",cities:"निगरानी शहर",districts:"निगरानी जिल्लाहरू",needAttention:"लाई ध्यान आवश्यक",showAll:"सबै ७७ देखाउनुहोस्",showAttention:"ध्यान आवश्यक मात्र",quakes:"भूकम्प (३०दि, M4.5+)",activeAlerts:"सक्रिय सतर्कता",lakes:"निगरानी ताल",
     downstream:"तल्लो तटीय",shelterNote:"IOM + गृह मन्त्रालयद्वारा तोकिएका ८३ खुला क्षेत्र (२०१३), नेपाल राजपत्र। निर्देशांक अनुमानित।",actions:"अहिले यो गर्नुहोस्",issued:"जारी",source:"स्रोत",updated:"अद्यावधिक"}
 };
 const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
@@ -253,7 +256,7 @@ function renderMap(){
     const c = w.city, rk = riskById[c.id];
     const col = rk ? (RISK_COLOR[rk.overall]||'#a8a29e') : '#6d28d9';
     const rainTxt = rk ? (rk.rain_72h_mm!=null ? `🌧️ ${rk.rain_72h_mm} mm / 72h<br>` : `🌧️ —<br>`) : '';
-    L.circleMarker([c.lat,c.lon],{radius:9,color:'#fff',weight:2,fillColor:col,fillOpacity:.95})
+    L.circleMarker([c.lat,c.lon],{radius:6,color:'#fff',weight:1.5,fillColor:col,fillOpacity:.9})
      .bindPopup(`<b>${cityName(c)}</b><br>${rk?`${rainTxt}🌊 ${rk.flood} · ⛰️ ${rk.landslide} · 🌍 ${rk.seismic}<br><b>${rk.overall.toUpperCase()}</b>`:'—'}`)
      .addTo(cityLayer);
   });
@@ -275,7 +278,7 @@ function renderStats(){
   document.getElementById('statCards').innerHTML = `
     <div class="card"><h3>${t('activeAlerts')}</h3><div class="stat">${o.active_alerts} <small>⚠️${sev.warning||0} 🟡${sev.watch||0}</small></div></div>
     <div class="card"><h3>${t('quakes')}</h3><div class="stat">${o.earthquakes_30d_m45}</div></div>
-    <div class="card"><h3>${t('cities')}</h3><div class="stat">${o.cities_monitored}</div></div>
+    <div class="card"><h3>${t('districts')}</h3><div class="stat">${o.districts_monitored}</div></div>
     <div class="card"><h3>${t('lakes')}</h3><div class="stat">${o.glof_lakes_watched} <small>verified</small></div></div>`;
 }
 
@@ -311,13 +314,22 @@ function wmo(code){
   return LANG==='ne'?v[1]:v[0];
 }
 function renderCityPills(){
-  document.getElementById('cityPills').innerHTML =
-    Object.values(DATA.weather).map(w=>
-      `<button class="city-pill ${w.city.id===DATA.city?'active':''}" onclick="selectCity('${w.city.id}')">${cityName(w.city)}</button>`).join('');
+  const sel = document.getElementById('districtSelect'); if(!sel) return;
+  const provs = {};
+  Object.values(DATA.weather).forEach(w=>{
+    const p = LANG==='ne'?w.city.province_ne:w.city.province_en;
+    (provs[p] = provs[p]||[]).push(w.city);
+  });
+  sel.innerHTML = Object.keys(provs).sort().map(p=>
+    `<optgroup label="${p}">` + provs[p]
+      .sort((a,b)=>cityName(a).localeCompare(cityName(b)))
+      .map(c=>`<option value="${c.id}" ${c.id===DATA.city?'selected':''}>${cityName(c)}</option>`).join('') +
+    `</optgroup>`).join('');
 }
-function selectCity(id){ DATA.city=id; renderCityPills(); renderForecast(); }
+function selectCity(id){ DATA.city=id; renderForecast(); }
 function renderForecast(){
   const w = DATA.weather[DATA.city]; if(!w) return;
+  document.getElementById('forecastDistrict').textContent = cityName(w.city);
   const d = w.daily, c = w.current||{};
   let h = `<div class="forecast-day" style="font-weight:700;background:#f6efe0;border-radius:8px;padding:10px 8px;">
     <span>${LANG==='ne'?'अहिले':'Now'}: ${wmo(c.weather_code)} ${c.temperature_2m??'—'}°C</span>
@@ -330,13 +342,22 @@ function renderForecast(){
   document.getElementById('forecastBody').innerHTML = h;
 }
 
+let RISK_FILTER = 'attention';
 function renderRisk(){
-  document.getElementById('riskBody').innerHTML = (DATA.risk||[]).map(r=>`
+  document.getElementById('riskToggle').textContent = t(RISK_FILTER==='all'?'showAttention':'showAll');
+  const rows = (DATA.risk||[]).filter(r=>RISK_FILTER==='all' || ['moderate','high','critical'].includes(r.overall));
+  document.getElementById('riskCount').textContent =
+    RISK_FILTER==='all' ? `${rows.length} / ${DATA.risk.length}` : `${rows.length} ${t('needAttention')}`;
+  document.getElementById('riskBody').innerHTML = rows.map(r=>`
     <tr><td><b>${cityName(r.city)}</b></td><td>${r.rain_72h_mm==null?'—':r.rain_72h_mm+' mm'}</td>
     <td><span class="lvl ${r.flood}">${r.flood}</span></td>
     <td><span class="lvl ${r.landslide}">${r.landslide}</span></td>
     <td><span class="lvl ${r.seismic}">${r.seismic}</span></td>
     <td><span class="lvl ${r.overall}">${LANG==='ne'?r.overall_ne:r.overall}</span></td></tr>`).join('');
+}
+function toggleRiskFilter(){
+  RISK_FILTER = RISK_FILTER==='all' ? 'attention' : 'all';
+  renderRisk();
 }
 
 function renderGlof(){
