@@ -660,7 +660,14 @@ async def _dhm_ws_fetch(want=("river_test", "rainfall_watch", "river_discharge")
                     break
                 for p in _eio_parse(r.text):
                     _note(p)
-                    if p.startswith("40"):
+                    if p.startswith("2") and not p.startswith("42"):
+                        # engine.io ping -> must pong or the server kills the session
+                        try:
+                            await client.post(DHM_WS + q, content=_eio_frame("3"),
+                                              headers=hdr)
+                        except Exception:  # noqa: BLE001
+                            pass
+                    elif p.startswith("40"):
                         got["_sio_connected"] = True
                     elif p.startswith("42"):
                         try:
