@@ -113,7 +113,8 @@ LEVEL_NE = {"low": "सामान्य", "moderate": "मध्यम", "high
 def _make_client(timeout):
     proxy = (os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
              or os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy"))
-    kw = {"timeout": timeout, "trust_env": False}
+    kw = {"timeout": timeout, "trust_env": False,
+          "headers": {"User-Agent": "Suraksha/0.1 (Nepal disaster early-warning prototype)"}}
     if proxy:
         kw["proxy"] = proxy
     # Egress proxy does TLS interception; its CA is in SSL_CERT_FILE on this VM.
@@ -233,7 +234,7 @@ async def fetch_weather():
     for city, w in zip(CITIES, data):
         out[city["id"]] = {"city": city, "current": w.get("current", {}),
                            "daily": w.get("daily", {}), "data_label": "live"}
-    cache_set("weather", out, 1800)
+    cache_set("weather", out, 3600)   # hourly: weather changes slowly
     _stale["weather"] = out
     return out, False
 
@@ -252,36 +253,56 @@ def landslide_level(rain72, hill):
     return 0
 
 async def compute_risk():
-    """Transparent heuristic risk engine — MODEL label, not an official forecast."""
-    weather, _ = await fetch_weather()
-    quakes, _ = await fetch_usgs()
+    """Transparent heuristic risk engine — MODEL label, not an official forecast.
+
+    Degrades gracefully: if the weather upstream is unreachable (rate-limited),
+    flood/landslide show 'unknown' instead of failing the whole dashboard.
+    """
+    try:
+        weather, _ = await fetch_weather()
+    except Exception:
+        weather = None
+    try:
+        quakes, _ = await fetch_usgs()
+    except Exception:
+        quakes = []
     now = time.time()
     results = []
     for city in CITIES:
-        w = weather[city["id"]]
-        daily = w["daily"]
-        precips = (daily.get("precipitation_sum") or [])[:3]
-        rain72 = round(sum(p or 0 for p in precips), 1)
-        probs = (daily.get("precipitation_probability_max") or [])[:3]
-        prob72 = max([p or 0 for p in probs] or [0])
-        fl, ls = flood_level(rain72), landslide_level(rain72, city["hill"])
+        if weather and city["id"] in weather:
+            w = weather[city["id"]]
+            daily = w["daily"]
+            precips = (daily.get("precipitation_sum") or [])[:3]
+            rain72 = round(sum(p or 0 for p in precips), 1)
+            probs = (daily.get("precipitation_probability_max") or [])[:3]
+            prob72 = max([p or 0 for p in probs] or [0])
+            fl, ls = flood_level(rain72), landslide_level(rain72, city["hill"])
+            fcast = (daily.get("time") or [])[:7]
+        else:
+            rain72, prob72, fcast = None, None, []
+            fl, ls = -1, -1  # unknown
         # seismic: M4.5+ within 300 km in last 30 days
         recent = [q for q in quakes
                   if haversine_km(q["lat"], q["lon"], city["lat"], city["lon"]) <= 300]
         if len(recent) >= 3: seis = 2
         elif len(recent) >= 1: seis = 1
         else: seis = 0
-        overall = max(fl, ls, seis)
+        known = [x for x in (fl, ls, seis) if x >= 0]
+        overall = max(known) if known else -1
+        def lvl(x): return "unknown" if x < 0 else LEVELS[x]
         results.append({
             "city": city, "rain_72h_mm": rain72, "rain_prob_max": prob72,
-            "flood": LEVELS[fl], "landslide": LEVELS[ls], "seismic": LEVELS[seis],
-            "overall": LEVELS[overall], "overall_ne": LEVEL_NE[LEVELS[overall]],
+            "flood": lvl(fl), "landslide": lvl(ls), "seismic": lvl(seis),
+            "overall": lvl(overall),
+            "overall_ne": "अज्ञात" if overall < 0 else LEVEL_NE[LEVELS[overall]],
             "recent_quakes_300km": len(recent),
-            "forecast_dates": (daily.get("time") or [])[:7],
+            "forecast_dates": fcast,
+            "weather_available": weather is not None,
             "data_label": "model",
             "computed_at": datetime.fromtimestamp(now, tz=timezone.utc).isoformat(),
         })
-    results.sort(key=lambda r: LEVELS.index(r["overall"]), reverse=True)
+    order = {"unknown": -1, "low": 0, "moderate": 1, "high": 2, "critical": 3}
+    results.sort(key=lambda r: order.get(r["overall"], -1), reverse=True)
     return results
 
 async def build_alerts():
@@ -291,6 +312,8 @@ async def build_alerts():
     alerts, n = [], 0
     for r in risk:
         city = r["city"]
+        if r["rain_72h_mm"] is None:
+            continue  # weather upstream down — no heuristic alerts this cycle
         for hazard, key in (("flood", "flood"), ("landslide", "landslide")):
             lvl = LEVELS.index(r[key])
             if lvl >= 2:  # high or critical
@@ -448,8 +471,14 @@ def shelters():
 
 @app.get("/api/overview")
 async def overview():
-    alerts_list = await build_alerts()
-    quakes, _ = await fetch_usgs()
+    try:
+        alerts_list = await build_alerts()
+    except Exception:
+        alerts_list = []
+    try:
+        quakes, _ = await fetch_usgs()
+    except Exception:
+        quakes = []
     by_sev = {}
     for a in alerts_list:
         by_sev[a["severity"]] = by_sev.get(a["severity"], 0) + 1

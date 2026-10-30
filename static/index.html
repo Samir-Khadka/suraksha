@@ -48,6 +48,7 @@
   .lvl{font-weight:700; padding:3px 12px; border-radius:999px; color:#fff; font-size:.78rem; text-transform:capitalize;}
   .lvl.low{background:var(--low);} .lvl.moderate{background:var(--moderate);}
   .lvl.high{background:var(--high);} .lvl.critical{background:var(--critical);}
+  .lvl.unknown{background:#a8a29e;}
   table{width:100%; border-collapse:collapse; background:var(--card); border-radius:14px; overflow:hidden;
     box-shadow:0 2px 10px rgba(60,40,10,.07); font-size:.9rem;}
   th,td{padding:10px 12px; text-align:left; border-bottom:1px solid #f3ecdd;}
@@ -206,7 +207,7 @@ function toggleLang(){ LANG = LANG==='en' ? 'ne' : 'en';
 const API = '';
 let DATA = {overview:null, alerts:[], risk:[], quakes:[], weather:{}, glof:[], shelters:[], city:'kathmandu'};
 async function get(p){ const r = await fetch(API+p); if(!r.ok) throw new Error(p+' → '+r.status); return r.json(); }
-const RISK_COLOR = {low:'#16a34a', moderate:'#ca8a04', high:'#ea580c', critical:'#dc2626'};
+const RISK_COLOR = {low:'#16a34a', moderate:'#ca8a04', high:'#ea580c', critical:'#dc2626', unknown:'#a8a29e'};
 </script>
 <script>
 let map, quakeLayer, cityLayer, lakeLayer, shelterLayer;
@@ -234,9 +235,10 @@ function renderMap(){
   const riskById = {}; (DATA.risk||[]).forEach(x=>riskById[x.city.id]=x);
   Object.values(DATA.weather).forEach(w=>{
     const c = w.city, rk = riskById[c.id];
-    const col = rk ? RISK_COLOR[rk.overall] : '#6d28d9';
+    const col = rk ? (RISK_COLOR[rk.overall]||'#a8a29e') : '#6d28d9';
+    const rainTxt = rk ? (rk.rain_72h_mm!=null ? `🌧️ ${rk.rain_72h_mm} mm / 72h<br>` : `🌧️ —<br>`) : '';
     L.circleMarker([c.lat,c.lon],{radius:9,color:'#fff',weight:2,fillColor:col,fillOpacity:.95})
-     .bindPopup(`<b>${cityName(c)}</b><br>${rk?`🌧️ ${rk.rain_72h_mm} mm / 72h<br>🌊 ${rk.flood} · ⛰️ ${rk.landslide} · 🌍 ${rk.seismic}<br><b>${rk.overall.toUpperCase()}</b>`:'—'}`)
+     .bindPopup(`<b>${cityName(c)}</b><br>${rk?`${rainTxt}🌊 ${rk.flood} · ⛰️ ${rk.landslide} · 🌍 ${rk.seismic}<br><b>${rk.overall.toUpperCase()}</b>`:'—'}`)
      .addTo(cityLayer);
   });
   (DATA.glof||[]).forEach(l=>{
@@ -314,7 +316,7 @@ function renderForecast(){
 
 function renderRisk(){
   document.getElementById('riskBody').innerHTML = (DATA.risk||[]).map(r=>`
-    <tr><td><b>${cityName(r.city)}</b></td><td>${r.rain_72h_mm} mm</td>
+    <tr><td><b>${cityName(r.city)}</b></td><td>${r.rain_72h_mm==null?'—':r.rain_72h_mm+' mm'}</td>
     <td><span class="lvl ${r.flood}">${r.flood}</span></td>
     <td><span class="lvl ${r.landslide}">${r.landslide}</span></td>
     <td><span class="lvl ${r.seismic}">${r.seismic}</span></td>
