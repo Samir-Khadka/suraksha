@@ -1,7 +1,14 @@
 # Suraksha (सुरक्षा) — Disaster Management & Early Warning System for Nepal
 
-**System Architecture Blueprint — v0.1 (2026-10-30)**
-**Author:** Samir Khadka · **Status:** Blueprint + working prototype
+**System Architecture Blueprint — v0.2 (2026-10-30)**
+**Author:** Samir Khadka · **Status:** Blueprint + working system (live on Render)
+
+### v0.2 changelog (2026-10-30, "make it real")
+- **NEMRC live**: `/api/earthquakes/nepal` scrapes Nepal's own seismic catalog (catches M4+ local events USGS misses); violet layer on the map.
+- **GLOF verified**: registry replaced with the real ICIMOD + UNDP + Government of Nepal 2026 assessment — 6 priority lakes (Imja Tsho, Tsho Rolpa, Thulagi, Lower Barun, Lumding Tsho, Hongu 2) with real mitigation facts (2016 Imja lowering, 2000 Tsho Rolpa drainage, $49.9M Sanjeevani Project 2026–2033); `/api/glof/summary` carries the 47/21/25/1 stats.
+- **Shelters verified**: 10 real open spaces from the IOM + Ministry of Home Affairs 83-space designation (2013, Nepal Gazette), incl. 2015 camp usage; coordinates approximate.
+- Data-honesty labels extended: `live` / `verified` / `model` / `sample` (sample now ~zero).
+- DHM river-watch socket.io endpoint reverse-engineered (`/gss/socket.io`, events `river_watch`/`rainfall_watch`) but sandbox proxy blocks WS POSTs — production integration planned.
 
 ---
 
@@ -149,8 +156,10 @@ with feedback loops for verification.
 | Open-Meteo | Current + 16-day forecast, hourly precipitation | Free | None | ✅ LIVE in prototype |
 | BIPAD (bipadportal.gov.np/api) | Nepal incidents, DHM rain/river gauges, NEMRC quakes | Free | None (public) | ⚠️ Documented; unreachable from sandbox — adapter stubbed, production integration planned |
 | DHM Nepal (via BIPAD) | River water levels, rainfall stations, flood forecast | Free | Via BIPAD | ⚠️ Via BIPAD integration |
-| NEMRC (National Seismological Centre) | Nepal earthquake catalog | Free | — | 🔜 v1 (via BIPAD) |
-| ICIMOD | Glacial lake inventory, landslide data | Free | — | 🔜 v1 (GLOF module) |
+| NEMRC (seismonepal.gov.np) | Nepal earthquake catalog (ML events USGS misses) | Free | None (scraped) | ✅ LIVE in v0.2 (`/api/earthquakes/nepal`) |
+| ICIMOD + UNDP + GoN (2026 PDGL assessment) | 47 dangerous glacial lakes (21 Nepal / 25 Tibet / 1 India); Sanjeevani priority lakes | Free | Published | ✅ LIVE in v0.2 (verified registry, `/api/glof/lakes` + `/api/glof/summary`) |
+| IOM + MoHA (2013, Nepal Gazette) | 83 designated open spaces / shelters | Free | Published | ✅ LIVE in v0.2 (verified registry, `/api/shelters`) |
+| DHM hydrology.gov.np (socket.io `/gss/socket.io`) | Real-time river water levels (river_watch / rainfall_watch) | Free | None (WS) | ⚠️ Reverse-engineered; sandbox proxy blocks WS POSTs — production integration planned |
 | Sentinel-2 / Copernicus | Lake area change detection | Free | Account | 🔜 v2 |
 | GDACS | Global disaster alerts (RSS/API) | Free | None | 🔜 v1 (backup feed) |
 | Own messaging API | SMS/WhatsApp/RCS + OTP dispatch | Free (console) / provider rates | API key | ✅ Adapter in prototype (console), live keys = production step |

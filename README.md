@@ -25,13 +25,16 @@ Open http://localhost:8077
 - `GET /api/weather?city=kathmandu` — Open-Meteo live (9 monitored cities)
 - `GET /api/risk` — heuristic district risk (MODEL — not an official forecast)
 - `GET /api/alerts` — generated alerts, bilingual
-- `GET /api/glof/lakes` — glacial lake registry (SAMPLE)
-- `GET /api/shelters` — emergency shelters (SAMPLE)
+- `GET /api/glof/lakes` — 6 priority glacial lakes (VERIFIED, ICIMOD/UNDP 2026)
+- `GET /api/glof/summary` — 47 PDGL stats (VERIFIED)
+- `GET /api/earthquakes/nepal` — NEMRC Nepal catalog (LIVE)
+- `GET /api/shelters` — 10 real open spaces (VERIFIED, IOM/MoHA 2013)
 - `POST /api/broadcast` — alert dispatch adapter (console in prototype;
   set `MESSAGING_API_URL` + `MESSAGING_API_KEY` to forward to the real
   unified messaging API)
 
 ## Data honesty
 
-Every response carries `data_label`: `live` (USGS/Open-Meteo just fetched),
-`model` (Suraksha heuristic — prototype only), `sample` (illustrative seeds).
+Every response carries `data_label`: `live` (USGS / Open-Meteo / NEMRC just fetched),
+`verified` (curated from authoritative published sources: ICIMOD/UNDP 2026, IOM/MoHA 2013),
+`model` (Suraksha heuristic — prototype only), `sample` (illustrative seeds, ~zero).
