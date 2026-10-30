@@ -290,34 +290,160 @@ async def fetch_usgs():
     _stale["usgs"] = quakes
     return quakes, False
 
-async def fetch_weather():
-    """Live forecast for all monitored cities from Open-Meteo (free, no key)."""
-    async with _lock("weather"):
-        hit = cache_get("weather")
-        if hit is not None:
-            return hit, True
-        lats = ",".join(str(c["lat"]) for c in CITIES)
-        lons = ",".join(str(c["lon"]) for c in CITIES)
-        url = ("https://api.open-meteo.com/v1/forecast?latitude=" + lats + "&longitude=" + lons +
-               "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
-               "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
-               "precipitation_probability_max&timezone=Asia%2FKathmandu&forecast_days=7")
-        try:
-            async with _make_client(25) as client:
-                resp = await _get_with_retry(client, url)
-                raw = resp.json()
-        except Exception:
-            if "weather" in _stale:                   # graceful degradation
-                return _stale["weather"], True
-            raise
+MET_UA = {"User-Agent": "Suraksha/0.2 (https://github.com/Samir-Khadka/suraksha)"}
+MET_WMO = {"clearsky": 0, "fair": 1, "partlycloudy": 2, "cloudy": 3, "fog": 45,
+           "lightrainshowers": 61, "lightrain": 61, "lightsleetshowers": 61, "lightsleet": 61,
+           "rainshowers": 63, "rain": 63, "sleetshowers": 63, "sleet": 63,
+           "heavyrainshowers": 65, "heavyrain": 65, "heavysleetshowers": 65, "heavysleet": 65,
+           "lightsnowshowers": 71, "lightsnow": 71, "snowshowers": 73, "snow": 73,
+           "heavysnowshowers": 75, "heavysnow": 75}
+
+def _met_wmo(symbol_code):
+    base = (symbol_code or "").split("_")[0]
+    if "thunder" in base:
+        return 95
+    return MET_WMO.get(base, 3)
+
+def _npt_date(iso_ts):
+    """Local Kathmandu date for an ISO timestamp."""
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("Asia/Kathmandu")
+    except Exception:  # noqa: BLE001
+        from datetime import timedelta
+        tz = timezone(timedelta(hours=5, minutes=45))
+    dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(tz).date().isoformat()
+
+async def _fetch_met_city(client, city):
+    """One city from MET Norway Locationforecast 2.0 (free, no key)."""
+    url = (f"https://api.met.no/weatherapi/locationforecast/2.0/compact"
+           f"?lat={city['lat']}&lon={city['lon']}")
+    resp = await client.get(url, headers=MET_UA)
+    resp.raise_for_status()
+    ts = resp.json()["properties"]["timeseries"]
+    if not ts:
+        raise ValueError("empty timeseries")
+    first = ts[0]
+    inst = first["data"]["instant"]["details"]
+    n1 = (first["data"].get("next_1_hours") or {}).get("details", {})
+    cur = {"temperature_2m": inst.get("air_temperature"),
+           "precipitation": n1.get("precipitation_amount", 0),
+           "wind_speed_10m": inst.get("wind_speed"),
+           "weather_code": _met_wmo((first["data"].get("next_1_hours") or {})
+                                    .get("summary", {}).get("symbol_code", ""))}
+    days, order = {}, []
+    for e in ts:
+        d = _npt_date(e["time"])
+        if d not in days:
+            days[d] = {"tmin": 1e9, "tmax": -1e9, "precip": 0.0, "wet": 0, "n": 0,
+                       "sym": {}, "noon_sym": None, "noon_dist": 1e9}
+            order.append(d)
+        dd = days[d]
+        t = inst_of(e)
+        if t is not None:
+            dd["tmin"] = min(dd["tmin"], t); dd["tmax"] = max(dd["tmax"], t)
+        p = _met_precip(e)
+        dd["precip"] += p; dd["n"] += 1
+        if p > 0.2:
+            dd["wet"] += 1
+        sym = ((e["data"].get("next_6_hours") or {}).get("summary", {})
+               .get("symbol_code") or (e["data"].get("next_12_hours") or {})
+               .get("summary", {}).get("symbol_code") or "")
+        if sym:
+            dd["sym"][sym] = dd["sym"].get(sym, 0) + 1
+        hr = _npt_hour(e["time"])
+        if hr is not None and abs(hr - 12) < dd["noon_dist"]:
+            dd["noon_dist"] = abs(hr - 12); dd["noon_sym"] = sym
+    daily = {"time": [], "weather_code": [], "temperature_2m_max": [],
+             "temperature_2m_min": [], "precipitation_sum": [],
+             "precipitation_probability_max": []}
+    for d in order[:7]:
+        dd = days[d]
+        sym = dd["noon_sym"] or (max(dd["sym"], key=dd["sym"].get) if dd["sym"] else "")
+        daily["time"].append(d)
+        daily["weather_code"].append(_met_wmo(sym))
+        daily["temperature_2m_max"].append(round(dd["tmax"], 1) if dd["tmax"] > -1e8 else None)
+        daily["temperature_2m_min"].append(round(dd["tmin"], 1) if dd["tmin"] < 1e8 else None)
+        daily["precipitation_sum"].append(round(dd["precip"], 1))
+        daily["precipitation_probability_max"].append(
+            round(100 * dd["wet"] / dd["n"]) if dd["n"] else 0)
+    return {"city": city, "current": cur, "daily": daily,
+            "data_label": "live", "provider": "MET Norway"}
+
+def inst_of(e):
+    try:
+        return e["data"]["instant"]["details"].get("air_temperature")
+    except (KeyError, TypeError):
+        return None
+
+def _met_precip(e):
+    d1 = (e["data"].get("next_1_hours") or {}).get("details", {})
+    if "precipitation_amount" in d1:
+        return float(d1["precipitation_amount"] or 0)
+    d6 = (e["data"].get("next_6_hours") or {}).get("details", {})
+    return float(d6.get("precipitation_amount", 0) or 0) / 6.0
+
+def _npt_hour(iso_ts):
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("Asia/Kathmandu")
+    except Exception:  # noqa: BLE001
+        from datetime import timedelta
+        tz = timezone(timedelta(hours=5, minutes=45))
+    dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(tz).hour
+
+async def _fetch_weather_openmeteo():
+    lats = ",".join(str(c["lat"]) for c in CITIES)
+    lons = ",".join(str(c["lon"]) for c in CITIES)
+    url = ("https://api.open-meteo.com/v1/forecast?latitude=" + lats + "&longitude=" + lons +
+           "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
+           "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
+           "precipitation_probability_max&timezone=Asia%2FKathmandu&forecast_days=7")
+    async with _make_client(25) as client:
+        resp = await _get_with_retry(client, url)
+        raw = resp.json()
     data = raw if isinstance(raw, list) else [raw]
     out = {}
     for city, w in zip(CITIES, data):
         out[city["id"]] = {"city": city, "current": w.get("current", {}),
-                           "daily": w.get("daily", {}), "data_label": "live"}
-    cache_set("weather", out, 3600)   # hourly: weather changes slowly
-    _stale["weather"] = out
-    return out, False
+                           "daily": w.get("daily", {}), "data_label": "live",
+                           "provider": "Open-Meteo"}
+    return out
+
+async def _fetch_weather_met():
+    async with _make_client(60) as client:
+        out = {}
+        for city in CITIES:  # sequential: polite to the free API
+            w = await _fetch_met_city(client, city)
+            out[city["id"]] = w
+    return out
+
+async def fetch_weather():
+    """Live forecast for all monitored cities.
+    Primary: Open-Meteo (free, no key). Fallback: MET Norway Locationforecast
+    (free, no key) — needed because Open-Meteo rate-limits some shared cloud IPs."""
+    async with _lock("weather"):
+        hit = cache_get("weather")
+        if hit is not None:
+            return hit, True
+        last_err = None
+        for fetcher in (_fetch_weather_openmeteo, _fetch_weather_met):
+            try:
+                out = await fetcher()
+                cache_set("weather", out, 3600)   # hourly: weather changes slowly
+                _stale["weather"] = out
+                return out, False
+            except Exception as e:  # noqa: BLE001
+                last_err = e
+        if "weather" in _stale:                   # graceful degradation
+            return _stale["weather"], True
+        raise RuntimeError(f"all weather providers unreachable: {last_err}")
 
 async def fetch_nemrc():
     """LIVE Nepal earthquake catalog scraped from the National Earthquake
