@@ -622,40 +622,39 @@ def _norm_station(s):
             "data_label": "live", "source": "DHM hydrology.gov.np"}
 
 async def _dhm_ws_fetch(want=("river_watch", "rainfall_watch")):
-    """One-shot engine.io polling session; returns {event: payload}."""
-    async with _make_client(45) as client:
-        r = await client.get(DHM_WS + "?EIO=4&transport=polling")
-        r.raise_for_status()
-        sid = None
-        for p in _eio_parse(r.text):
-            if p.startswith("0"):
-                sid = json.loads(p[1:])["sid"]
-        if not sid:
-            raise RuntimeError("no socket.io sid")
-        q = f"?EIO=4&transport=polling&sid={sid}"
-        body = _eio_frame("40") + "".join(
-            _eio_frame(json.dumps(["client_request", ev], separators=(",", ":")))
-            for ev in want)
-        r = await client.post(DHM_WS + q, content=body,
-                              headers={"Content-Type": "text/plain;charset=UTF-8"})
-        r.raise_for_status()
-        got = {}
-        for _ in range(10):
-            r = await client.get(DHM_WS + q)
-            if r.status_code != 200:
-                break
-            for p in _eio_parse(r.text):
-                if p.startswith("42"):
-                    try:
-                        msg = json.loads(p[2:])
-                        if isinstance(msg, list) and len(msg) == 2:
-                            got[msg[0]] = msg[1]
-                    except (ValueError, TypeError):
-                        pass
-            if all(ev in got for ev in want):
-                break
-            await asyncio.sleep(1)
-        return got
+    """socket.io client (polling → websocket upgrade) against DHM's feed.
+    Collects every event the server emits after our client_request."""
+    import socketio
+    sio = socketio.AsyncClient(reconnection=False)
+    got = {}
+    stop = asyncio.Event()
+
+    @sio.event
+    async def connect():
+        for ev in want:
+            await sio.emit("client_request", ev)
+
+    @sio.on("*")
+    async def _catch(event, data):
+        if event in ("connect", "disconnect"):
+            return
+        got[event] = data
+        if len(got) >= 3:
+            stop.set()
+
+    try:
+        await sio.connect("https://hydrology.gov.np", socketio_path="/gss/socket.io",
+                          wait_timeout=20)
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=25)
+        except asyncio.TimeoutError:
+            pass
+    finally:
+        try:
+            await sio.disconnect()
+        except Exception:  # noqa: BLE001
+            pass
+    return got
 
 async def fetch_dhm_rivers():
     """Live DHM river gauge readings. Cached 15 min."""
@@ -669,9 +668,19 @@ async def fetch_dhm_rivers():
             if "dhm" in _stale:
                 return _stale["dhm"], True
             raise
-        raw = ev.get("river_watch") or []
+        def _pick(*names):
+            for n in names:
+                v = ev.get(n)
+                if isinstance(v, list) and v:
+                    return v
+            # fallback: first list-of-dicts payload from any event
+            for v in ev.values():
+                if isinstance(v, list) and v and isinstance(v[0], dict):
+                    return v
+            return []
+        raw = _pick("river_watch", "river_test", "river", "rivers")
         stations = [_norm_station(s) for s in raw if isinstance(s, dict)]
-        rain = ev.get("rainfall_watch") or []
+        rain = _pick("rainfall_watch", "rainfall_test", "rainfall", "rain")
         result = {"stations": stations, "station_count": len(stations),
                   "rainfall_stations": len(rain) if isinstance(rain, list) else 0,
                   "events_seen": sorted(ev.keys()),
