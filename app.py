@@ -12,11 +12,13 @@ Data honesty contract: every response carries a `data_label`:
   - "sample"   : illustrative seed data (should be shrinking to zero)
 """
 import asyncio
+import json
 import math
 import os
 import re
 import time
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
@@ -566,7 +568,207 @@ async def fetch_nemrc():
         _stale["nemrc"] = quakes
         return quakes, False
 
-# ------------------------------------------------------------- risk engine --
+# ------------------------------------------------- DHM river gauges (live) --
+# DHM's hydrology.gov.np pushes real-time river/rainfall data over socket.io
+# (engine.io polling) at /gss/socket.io — events "river_watch"/"rainfall_watch".
+# Implemented with plain httpx (no extra dependency); works wherever plain
+# HTTPS POSTs are allowed.
+DHM_WS = "https://hydrology.gov.np/gss/socket.io/"
+
+def _eio_parse(txt):
+    pkts, i = [], 0
+    while i < len(txt):
+        m = re.match(r'(\d+):', txt[i:])
+        if not m:
+            break
+        ln = int(m.group(1)); j = i + len(m.group(0))
+        pkts.append(txt[j:j + ln]); i = j + ln
+    return pkts
+
+def _eio_frame(pkt):
+    return f"{len(pkt)}:{pkt}"
+
+def _station_name(s):
+    for k in ("stationName", "name", "station_name", "title", "station"):
+        if s.get(k):
+            return str(s[k])
+    return str(s.get("stationIndex", "?"))
+
+def _station_level(s):
+    wl = s.get("waterLevel")
+    if isinstance(wl, dict):
+        v = wl.get("value")
+    else:
+        v = wl
+    if v in (None, "", "N/A"):
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+def _norm_station(s):
+    lat = s.get("latitude", s.get("lat")); lon = s.get("longitude", s.get("lon"))
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        lat = lon = None
+    status = str(s.get("status", "")).upper()
+    level = "danger" if "DANGER" in status else "warning" if "WARNING" in status else "normal"
+    return {"name": _station_name(s), "station_index": s.get("stationIndex"),
+            "lat": lat, "lon": lon, "water_level": _station_level(s),
+            "status": status or "UNKNOWN", "level": level,
+            "basin": s.get("basin") or s.get(" Basin"), "river": s.get("river"),
+            "data_label": "live", "source": "DHM hydrology.gov.np"}
+
+async def _dhm_ws_fetch(want=("river_watch", "rainfall_watch")):
+    """One-shot engine.io polling session; returns {event: payload}."""
+    async with _make_client(45) as client:
+        r = await client.get(DHM_WS + "?EIO=4&transport=polling")
+        r.raise_for_status()
+        sid = None
+        for p in _eio_parse(r.text):
+            if p.startswith("0"):
+                sid = json.loads(p[1:])["sid"]
+        if not sid:
+            raise RuntimeError("no socket.io sid")
+        q = f"?EIO=4&transport=polling&sid={sid}"
+        body = _eio_frame("40") + "".join(
+            _eio_frame(json.dumps(["client_request", ev], separators=(",", ":")))
+            for ev in want)
+        r = await client.post(DHM_WS + q, content=body,
+                              headers={"Content-Type": "text/plain;charset=UTF-8"})
+        r.raise_for_status()
+        got = {}
+        for _ in range(10):
+            r = await client.get(DHM_WS + q)
+            if r.status_code != 200:
+                break
+            for p in _eio_parse(r.text):
+                if p.startswith("42"):
+                    try:
+                        msg = json.loads(p[2:])
+                        if isinstance(msg, list) and len(msg) == 2:
+                            got[msg[0]] = msg[1]
+                    except (ValueError, TypeError):
+                        pass
+            if all(ev in got for ev in want):
+                break
+            await asyncio.sleep(1)
+        return got
+
+async def fetch_dhm_rivers():
+    """Live DHM river gauge readings. Cached 15 min."""
+    async with _lock("dhm"):
+        hit = cache_get("dhm")
+        if hit is not None:
+            return hit, True
+        try:
+            ev = await _dhm_ws_fetch()
+        except Exception:
+            if "dhm" in _stale:
+                return _stale["dhm"], True
+            raise
+        raw = ev.get("river_watch") or []
+        stations = [_norm_station(s) for s in raw if isinstance(s, dict)]
+        rain = ev.get("rainfall_watch") or []
+        result = {"stations": stations, "station_count": len(stations),
+                  "rainfall_stations": len(rain) if isinstance(rain, list) else 0,
+                  "data_label": "live", "source": "DHM hydrology.gov.np"}
+        cache_set("dhm", result, 900)
+        _stale["dhm"] = result
+        return result, False
+
+# ------------------------------------------------------- incidents (GDACS) --
+async def fetch_gdacs_nepal():
+    """Real disaster events for Nepal from GDACS (free, no key). Cached 1h."""
+    async with _lock("gdacs"):
+        hit = cache_get("gdacs")
+        if hit is not None:
+            return hit, True
+        try:
+            async with _make_client(30) as client:
+                resp = await _get_with_retry(
+                    client, "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH")
+                feats = resp.json().get("features", [])
+        except Exception:
+            if "gdacs" in _stale:
+                return _stale["gdacs"], True
+            raise
+        out = []
+        for f in feats:
+            p = f.get("properties", {}) or {}
+            if "Nepal" not in str(p.get("country", "")):
+                continue
+            g = (f.get("geometry") or {})
+            coords = g.get("coordinates") if isinstance(g, dict) else None
+            urls = p.get("url") or {}
+            out.append({
+                "id": f"gdacs-{p.get('eventtype')}-{p.get('eventid')}",
+                "event_type": p.get("eventtype"), "name": p.get("name"),
+                "alert_level": p.get("alertlevel") or p.get("episodealertlevel"),
+                "from": p.get("fromdate"), "to": p.get("todate"),
+                "updated": p.get("datemodified"),
+                "lon": coords[0] if coords else None, "lat": coords[1] if coords else None,
+                "report_url": urls.get("report"),
+                "data_label": "live", "source": "GDACS",
+            })
+        out.sort(key=lambda e: e["from"] or "", reverse=True)
+        cache_set("gdacs", out, 3600)
+        _stale["gdacs"] = out
+        return out, False
+
+# ------------------------------------------- satellite (Sentinel-2 OData) --
+async def fetch_lake_scenes():
+    """Latest low-cloud Sentinel-2 scene per priority lake (Copernicus OData,
+    free, no key). Cached 6h — satellites revisit every ~5 days."""
+    async with _lock("s2"):
+        hit = cache_get("s2")
+        if hit is not None:
+            return hit, True
+        out = []
+        try:
+            async with _make_client(40) as client:
+                for lake in GLOF_LAKES:
+                    scene = None
+                    for cloud_max in (30, 60):
+                        filt = ("Collection/Name eq 'SENTINEL-2' and "
+                                f"OData.CSC.Intersects(area=geography'SRID=4326;POINT({lake['lon']} {lake['lat']})') and "
+                                "Attributes/OData.CSC.DoubleAttribute/any(att:att/Name eq 'cloudCover' and "
+                                f"att/OData.CSC.DoubleAttribute/Value lt {cloud_max})")
+                        url = ("https://catalogue.dataspace.copernicus.eu/odata/v1/Products"
+                               f"?$filter={quote(filt)}&$orderby=ContentDate/Start desc&$top=1")
+                        try:
+                            resp = await client.get(url)
+                            resp.raise_for_status()
+                            vals = resp.json().get("value", [])
+                        except Exception:  # noqa: BLE001 — per-lake best effort
+                            vals = []
+                        if vals:
+                            scene = vals[0]
+                            break
+                    if scene:
+                        v = scene
+                        out.append({"lake_id": lake["id"],
+                                    "lake_en": lake["name_en"], "lake_ne": lake["name_ne"],
+                                    "scene": v.get("Name", "")[:80],
+                                    "sensed": (v.get("ContentDate") or {}).get("Start"),
+                                    "data_label": "live",
+                                    "source": "Copernicus Sentinel-2"})
+                    else:
+                        out.append({"lake_id": lake["id"], "lake_en": lake["name_en"],
+                                    "lake_ne": lake["name_ne"], "scene": None,
+                                    "note": "no low-cloud scene found", "data_label": "live",
+                                    "source": "Copernicus Sentinel-2"})
+        except Exception:
+            if "s2" in _stale:
+                return _stale["s2"], True
+            raise
+        cache_set("s2", out, 21600)
+        _stale["s2"] = out
+        return out, False
+
+# ------------------------------------------------------- source probing ----
 def flood_level(rain72):
     if rain72 >= 100: return 3
     if rain72 >= 50: return 2
@@ -808,6 +1010,64 @@ async def earthquakes_nepal():
     return {"count": len(quakes), "earthquakes": quakes[:200], "cached": cached,
             "source": "National Earthquake Monitoring & Research Centre (NEMRC), Nepal",
             "data_label": "live"}
+
+@app.get("/api/rivers")
+async def rivers():
+    """Live DHM river gauge readings (hydrology.gov.np real-time feed)."""
+    try:
+        data, cached = await fetch_dhm_rivers()
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"DHM river feed unreachable: {str(e)[:150]}")
+    return {**data, "cached": cached}
+
+@app.get("/api/incidents")
+async def incidents():
+    """Real disaster events affecting Nepal (GDACS, free, no key)."""
+    try:
+        events, cached = await fetch_gdacs_nepal()
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"GDACS unreachable: {str(e)[:150]}")
+    return {"count": len(events), "incidents": events, "cached": cached,
+            "data_label": "live"}
+
+@app.get("/api/glof/satellite")
+async def glof_satellite():
+    """Latest low-cloud Sentinel-2 scene per priority lake (Copernicus, free)."""
+    try:
+        scenes, cached = await fetch_lake_scenes()
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"Copernicus unreachable: {str(e)[:150]}")
+    return {"count": len(scenes), "scenes": scenes, "cached": cached,
+            "note": "Scene metadata (latest clear view). Pixel-level NDWI change detection = v2 roadmap.",
+            "data_label": "live"}
+
+@app.get("/api/sources/status")
+async def sources_status():
+    """Reachability of every upstream, probed from THIS server (production truth)."""
+    probes = {
+        "usgs": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&limit=1",
+        "open_meteo": "https://api.open-meteo.com/v1/forecast?latitude=27.7&longitude=85.3&current=temperature_2m",
+        "met_norway": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=27.7&lon=85.3",
+        "nemrc": "https://seismonepal.gov.np/ne/earthquakes",
+        "gdacs": "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH",
+        "copernicus": "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$top=1",
+        "bipad": "https://bipad.gov.np/api/v1/",
+        "dhm_ws": "https://hydrology.gov.np/gss/socket.io/?EIO=4&transport=polling",
+    }
+    out = {}
+    async with _make_client(20) as client:
+        for name, url in probes.items():
+            t0 = time.time()
+            try:
+                headers = {"User-Agent": "Suraksha/0.2"} if name == "met_norway" else None
+                r = await client.get(url, headers=headers)
+                out[name] = {"reachable": r.status_code < 500,
+                             "http": r.status_code,
+                             "ms": int((time.time() - t0) * 1000)}
+            except Exception as e:  # noqa: BLE001
+                out[name] = {"reachable": False, "error": str(e)[:120],
+                             "ms": int((time.time() - t0) * 1000)}
+    return {"sources": out, "checked_at": datetime.now(timezone.utc).isoformat()}
 
 @app.get("/api/shelters")
 def shelters():
