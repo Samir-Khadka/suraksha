@@ -629,39 +629,68 @@ def _norm_station(s):
             "data_label": "live", "source": "DHM hydrology.gov.np"}
 
 async def _dhm_ws_fetch(want=("river_test", "rainfall_watch", "river_discharge")):
-    """socket.io client (polling → websocket upgrade) against DHM's feed.
-    Collects every event the server emits after our client_request."""
-    import socketio
-    sio = socketio.AsyncClient(reconnection=False)
+    """Manual engine.io v4 + socket.io handshake over long-polling.
+    Sequence matters: 40 (namespace connect) -> wait for server 40 ack ->
+    then 42 client_request emits. Batching emits with the 40 gets dropped."""
     got = {}
-    stop = asyncio.Event()
+    seen_packets = []
 
-    @sio.event
-    async def connect():
-        for ev in want:
-            await sio.emit("client_request", ev)
+    def _note(p):
+        seen_packets.append(p[:60])
 
-    @sio.on("*")
-    async def _catch(event, data):
-        if event in ("connect", "disconnect"):
-            return
-        got[event] = data
-        if len(got) >= 3:
-            stop.set()
+    async with _make_client(60) as client:
+        r = await client.get(DHM_WS + "?EIO=4&transport=polling")
+        r.raise_for_status()
+        sid = None
+        for p in _eio_parse(r.text):
+            _note(p)
+            if p.startswith("0"):
+                sid = json.loads(p[1:])["sid"]
+        if not sid:
+            raise RuntimeError("no engine.io sid; packets=" + str(seen_packets))
+        q = f"?EIO=4&transport=polling&sid={sid}"
+        hdr = {"Content-Type": "text/plain;charset=UTF-8"}
 
-    try:
-        await sio.connect("https://hydrology.gov.np", socketio_path="/gss/socket.io",
-                          wait_timeout=20)
-        try:
-            await asyncio.wait_for(stop.wait(), timeout=25)
-        except asyncio.TimeoutError:
-            pass
-    finally:
-        try:
-            await sio.disconnect()
-        except Exception:  # noqa: BLE001
-            pass
-    return got
+        async def _poll(seconds, want_events=()):
+            import time as _t
+            end = _t.monotonic() + seconds
+            while _t.monotonic() < end:
+                r = await client.get(DHM_WS + q)
+                if r.status_code != 200:
+                    break
+                for p in _eio_parse(r.text):
+                    _note(p)
+                    if p.startswith("40"):
+                        got["_sio_connected"] = True
+                    elif p.startswith("42"):
+                        try:
+                            msg = json.loads(p[2:])
+                            if isinstance(msg, list) and len(msg) == 2:
+                                got[msg[0]] = msg[1]
+                        except (ValueError, TypeError):
+                            pass
+                    elif p.startswith("1"):
+                        raise RuntimeError("server closed session; packets=" + str(seen_packets))
+                if "_sio_connected" in got and all(e in got for e in want_events):
+                    return True
+                await asyncio.sleep(1)
+            return False
+
+        # 1. socket.io namespace connect, alone
+        r = await client.post(DHM_WS + q, content=_eio_frame("40"), headers=hdr)
+        r.raise_for_status()
+        # 2. wait for the server's 40 ack before emitting anything
+        if not await _poll(15):
+            raise RuntimeError("no socket.io 40 ack; packets=" + str(seen_packets))
+        # 3. now emit the client requests
+        body = "".join(
+            _eio_frame(json.dumps(["client_request", ev], separators=(",", ":")))
+            for ev in want)
+        r = await client.post(DHM_WS + q, content=body, headers=hdr)
+        r.raise_for_status()
+        # 4. collect the data events
+        await _poll(30, want_events=tuple(w for w in want if w != "river_discharge"))
+        return got
 
 async def fetch_dhm_rivers():
     """Live DHM river gauge readings. Cached 15 min."""
