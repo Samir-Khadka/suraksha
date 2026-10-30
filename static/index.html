@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suraksha · सुरक्षा — Nepal Disaster Early Warning</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root{
+    --bg:#FAF6ED; --card:#ffffff; --ink:#2b2620; --muted:#8a8177;
+    --violet:#6d28d9; --gold:#b45309;
+    --low:#16a34a; --moderate:#ca8a04; --high:#ea580c; --critical:#dc2626;
+    --watch:#d97706; --warning:#ea580c; --emergency:#dc2626; --advisory:#16a34a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Segoe UI',system-ui,'Noto Sans Devanagari',sans-serif; background:var(--bg); color:var(--ink);}
+  header{background:linear-gradient(135deg,#4c1d95,#6d28d9); color:#fff; padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    box-shadow:0 2px 12px rgba(76,29,149,.25);}
+  header h1{font-size:1.35rem; letter-spacing:.3px;}
+  header h1 .ne{font-weight:400; opacity:.92;}
+  header .sub{font-size:.8rem; opacity:.85;}
+  .lang-toggle{background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); color:#fff;
+    border-radius:999px; padding:6px 14px; cursor:pointer; font-size:.9rem;}
+  .lang-toggle:hover{background:rgba(255,255,255,.28);}
+  #alertBanner{display:none; padding:12px 20px; font-weight:600; color:#fff;}
+  #alertBanner.show{display:block;}
+  #alertBanner.warning{background:var(--warning);} #alertBanner.watch{background:var(--watch);}
+  #alertBanner.emergency{background:var(--emergency); animation:pulse 1.6s infinite;}
+  #alertBanner.advisory{background:var(--advisory);}
+  @keyframes pulse{50%{filter:brightness(1.18);}}
+  main{max-width:1280px; margin:0 auto; padding:18px;}
+  .grid{display:grid; gap:16px;}
+  .cards4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));}
+  .card{background:var(--card); border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(60,40,10,.07);
+    border:1px solid #f0e8d8;}
+  .card h3{font-size:.82rem; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-bottom:8px;}
+  .stat{font-size:2rem; font-weight:700; color:var(--violet);}
+  .stat small{font-size:.85rem; color:var(--muted); font-weight:400;}
+  section{margin-top:22px;}
+  section>h2{font-size:1.12rem; margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+  #map{height:440px; border-radius:14px; border:1px solid #f0e8d8; box-shadow:0 2px 10px rgba(60,40,10,.07);}
+  .badge{display:inline-block; font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:999px;
+    text-transform:uppercase; letter-spacing:.5px; vertical-align:middle;}
+  .badge.live{background:#dcfce7; color:#166534;}
+  .badge.model{background:#fef3c7; color:#92400e;}
+  .badge.sample{background:#e7e5e4; color:#57534e;}
+  .lvl{font-weight:700; padding:3px 12px; border-radius:999px; color:#fff; font-size:.78rem; text-transform:capitalize;}
+  .lvl.low{background:var(--low);} .lvl.moderate{background:var(--moderate);}
+  .lvl.high{background:var(--high);} .lvl.critical{background:var(--critical);}
+  table{width:100%; border-collapse:collapse; background:var(--card); border-radius:14px; overflow:hidden;
+    box-shadow:0 2px 10px rgba(60,40,10,.07); font-size:.9rem;}
+  th,td{padding:10px 12px; text-align:left; border-bottom:1px solid #f3ecdd;}
+  th{background:#f6efe0; font-size:.75rem; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);}
+  tr:last-child td{border-bottom:none;}
+  .alert-card{border-left:6px solid var(--watch); margin-bottom:12px;}
+  .alert-card.warning{border-color:var(--warning);} .alert-card.emergency{border-color:var(--emergency);}
+  .alert-card.advisory{border-color:var(--advisory);}
+  .alert-card h4{margin-bottom:6px;}
+  .alert-card ul{margin:8px 0 0 18px; font-size:.88rem;}
+  .alert-card .meta{font-size:.75rem; color:var(--muted); margin-top:8px;}
+  .pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
+  .city-pill{background:var(--card); border:1px solid #e9dfc9; border-radius:999px; padding:6px 14px;
+    cursor:pointer; font-size:.85rem;}
+  .city-pill.active{background:var(--violet); color:#fff; border-color:var(--violet);}
+  .forecast-day{display:flex; justify-content:space-between; padding:9px 4px; border-bottom:1px dashed #eee2c9; font-size:.9rem;}
+  .forecast-day:last-child{border-bottom:none;}
+  .guide-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px;}
+  .guide h4{margin-bottom:8px; font-size:1rem;}
+  .guide ol{margin-left:18px; font-size:.88rem; display:grid; gap:6px;}
+  footer{margin:26px 0 10px; font-size:.78rem; color:var(--muted); text-align:center; line-height:1.7;}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:.8rem; margin-top:8px; color:var(--muted);}
+  .legend span{display:flex; align-items:center; gap:6px;}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block;}
+  #loading{position:fixed; inset:0; background:rgba(250,246,237,.85); display:flex; align-items:center;
+    justify-content:center; font-size:1.1rem; color:var(--violet); z-index:999;}
+  @media(max-width:640px){ #map{height:320px;} .stat{font-size:1.5rem;} }
+</style>
+</head>
+<body>
+<div id="loading">⏳ <span data-i18n="loading">Loading live data…</span></div>
+
+<header>
+  <div>
+    <h1>🛡️ Suraksha <span class="ne">· सुरक्षा</span></h1>
+    <div class="sub" data-i18n="tagline">Nepal Disaster Management &amp; Early Warning System</div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <span id="clock" style="font-size:.85rem;opacity:.9;"></span>
+    <button class="lang-toggle" id="langBtn" onclick="toggleLang()">नेपाली</button>
+  </div>
+</header>
+
+<div id="alertBanner"></div>
+
+<main>
+  <div class="grid cards4" id="statCards"></div>
+
+  <section>
+    <h2>🗺️ <span data-i18n="liveMap">Live Hazard Map</span>
+      <span class="badge live">Live</span> <span class="badge model">Model</span> <span class="badge sample">Sample</span>
+    </h2>
+    <div id="map"></div>
+    <div class="legend">
+      <span><span class="dot" style="background:#dc2626"></span><span data-i18n="lgQuake">Earthquake (size = magnitude)</span></span>
+      <span><span class="dot" style="background:#6d28d9"></span><span data-i18n="lgCity">City risk</span></span>
+      <span><span class="dot" style="background:#0284c7"></span><span data-i18n="lgLake">Glacial lake (sample)</span></span>
+      <span><span class="dot" style="background:#16a34a"></span><span data-i18n="lgShelter">Shelter (sample)</span></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>🚨 <span data-i18n="alerts">Active Alerts</span></h2>
+    <div id="alertsList"></div>
+  </section>
+
+  <section>
+    <h2>🌧️ <span data-i18n="forecast">7-Day Weather Forecast</span> <span class="badge live">Live</span></h2>
+    <div class="pill-row" id="cityPills"></div>
+    <div class="card"><div id="forecastBody"></div>
+      <div class="meta" style="font-size:.75rem;color:var(--muted);margin-top:8px;" data-i18n="srcMeteo">Source: Open-Meteo (free, no key)</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>📊 <span data-i18n="riskTable">District Risk Overview</span> <span class="badge model">Model</span></h2>
+    <div class="card" style="padding:0;overflow-x:auto;">
+      <table><thead><tr>
+        <th data-i18n="thCity">City</th><th data-i18n="thRain">Rain 72h</th>
+        <th data-i18n="thFlood">Flood</th><th data-i18n="thSlide">Landslide</th>
+        <th data-i18n="thSeis">Seismic</th><th data-i18n="thOverall">Overall</th>
+      </tr></thead><tbody id="riskBody"></tbody></table>
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:6px;" data-i18n="modelNote">
+      Prototype heuristic: 72h forecast rainfall thresholds. Not an official DHM/NDRRMA forecast.
+    </div>
+  </section>
+
+  <section>
+    <h2>🏔️ <span data-i18n="glof">GLOF Watch — Glacial Lakes</span> <span class="badge sample">Sample</span></h2>
+    <div class="grid cards4" id="glofGrid"></div>
+  </section>
+
+  <section>
+    <h2>⛺ <span data-i18n="shelters">Emergency Shelters</span> <span class="badge sample">Sample</span></h2>
+    <div class="grid cards4" id="shelterGrid"></div>
+  </section>
+
+  <section>
+    <h2>📋 <span data-i18n="guides">What To Do — Safety Guides</span></h2>
+    <div class="guide-grid" id="guideGrid"></div>
+  </section>
+
+  <section>
+    <h2>🔌 <span data-i18n="sources">Data Sources</span></h2>
+    <div class="card" style="font-size:.88rem;line-height:2;">
+      <div>🛰️ <b>USGS Earthquake Hazards Program</b> — <span class="badge live">Live</span> <span data-i18n="srcUsgs">real-time global earthquake feed, no key needed</span></div>
+      <div>🌦️ <b>Open-Meteo</b> — <span class="badge live">Live</span> <span data-i18n="srcMeteo2">current + 16-day forecast, no key needed</span></div>
+      <div>🏛️ <b>BIPAD / NDRRMA Nepal</b> — <span class="badge model">Planned</span> <span data-i18n="srcBipad">national disaster portal: DHM river gauges, incident reports (integration ready)</span></div>
+      <div>📡 <b>GLOF sensors · Sentinel-2</b> — <span class="badge model">Planned</span> <span data-i18n="srcGlof">lake-level IoT + satellite change detection (v2 roadmap)</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span data-i18n="footer">Suraksha v0.1 prototype · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·</span>
+    <span id="updatedAt"></span>
+  </footer>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let LANG = 'en';
+const I18N = {
+  en:{loading:"Loading live data…",tagline:"Nepal Disaster Management & Early Warning System",
+    liveMap:"Live Hazard Map",lgQuake:"Earthquake (size = magnitude)",lgCity:"City risk",lgLake:"Glacial lake (sample)",lgShelter:"Shelter (sample)",
+    alerts:"Active Alerts",forecast:"7-Day Weather Forecast",srcMeteo:"Source: Open-Meteo (free, no key)",
+    riskTable:"District Risk Overview",thCity:"City",thRain:"Rain 72h",thFlood:"Flood",thSlide:"Landslide",thSeis:"Seismic",thOverall:"Overall",
+    modelNote:"Prototype heuristic: 72h forecast rainfall thresholds. Not an official DHM/NDRRMA forecast.",
+    glof:"GLOF Watch — Glacial Lakes",shelters:"Emergency Shelters",guides:"What To Do — Safety Guides",sources:"Data Sources",
+    srcUsgs:"real-time global earthquake feed, no key needed",srcMeteo2:"current + 16-day forecast, no key needed",
+    srcBipad:"national disaster portal: DHM river gauges, incident reports (integration ready)",
+    srcGlof:"lake-level IoT + satellite change detection (v2 roadmap)",
+    footer:"Suraksha v0.1 prototype · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·",
+    noAlerts:"✅ No active alerts right now. Stay prepared.",cities:"Cities monitored",quakes:"Quakes (30d, M4.5+)",activeAlerts:"Active alerts",lakes:"Lakes watched",
+    downstream:"Downstream",actions:"Do this now",issued:"Issued",source:"Source",updated:"Updated"},
+  ne:{loading:"लाइभ डाटा लोड हुँदैछ…",tagline:"नेपाल विपद् व्यवस्थापन तथा पूर्वसूचना प्रणाली",
+    liveMap:"लाइभ जोखिम नक्सा",lgQuake:"भूकम्प (आकार = म्याग्निच्युड)",lgCity:"शहर जोखिम",lgLake:"हिमताल (नमुना)",lgShelter:"आश्रयस्थल (नमुना)",
+    alerts:"सक्रिय सतर्कताहरू",forecast:"७-दिने मौसम पूर्वानुमान",srcMeteo:"स्रोत: Open-Meteo (नि:शुल्क)",
+    riskTable:"जिल्ला जोखिम विवरण",thCity:"शहर",thRain:"७२घ. वर्षा",thFlood:"बाढी",thSlide:"पहिरो",thSeis:"भूकम्पीय",thOverall:"समग्र",
+    modelNote:"प्रोटोटाइप अनुमान: ७२-घण्टे वर्षा थ्रेसहोल्ड। आधिकारिक DHM/NDRRMA पूर्वानुमान होइन।",
+    glof:"हिमताल निगरानी",shelters:"आपतकालीन आश्रयस्थल",guides:"के गर्ने — सुरक्षा निर्देशिका",sources:"डाटा स्रोतहरू",
+    srcUsgs:"वास्तविक-समय विश्व भूकम्प फिड",srcMeteo2:"हालको + १६-दिने पूर्वानुमान",
+    srcBipad:"राष्ट्रिय विपद् पोर्टल: DHM नदी मापन, घटना रिपोर्ट (एकीकरण तयार)",
+    srcGlof:"ताल सतह IoT + स्याटेलाइट निगरानी (v2 योजना)",
+    footer:"सुरक्षा v0.1 प्रोटोटाइप · जोखिम स्कोर अनुमान मात्र हुन् · वास्तविक आपतकालमा नेपाल प्रहरी १०० मा कल गर्नुहोस् ·",
+    noAlerts:"✅ हाल कुनै सक्रिय सतर्कता छैन। तयार रहनुहोस्।",cities:"निगरानी शहर",quakes:"भूकम्प (३०दि, M4.5+)",activeAlerts:"सक्रिय सतर्कता",lakes:"निगरानी ताल",
+    downstream:"तल्लो तटीय",actions:"अहिले यो गर्नुहोस्",issued:"जारी",source:"स्रोत",updated:"अद्यावधिक"}
+};
+const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
+const cityName = c => LANG==='ne' ? c.name_ne : c.name_en;
+function toggleLang(){ LANG = LANG==='en' ? 'ne' : 'en';
+  document.getElementById('langBtn').textContent = LANG==='en' ? 'नेपाली' : 'English';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.innerHTML = t(el.dataset.i18n); });
+  renderAll();
+}
+const API = '';
+let DATA = {overview:null, alerts:[], risk:[], quakes:[], weather:{}, glof:[], shelters:[], city:'kathmandu'};
+async function get(p){ const r = await fetch(API+p); if(!r.ok) throw new Error(p+' → '+r.status); return r.json(); }
+const RISK_COLOR = {low:'#16a34a', moderate:'#ca8a04', high:'#ea580c', critical:'#dc2626'};
+</script>
+<script>
+let map, quakeLayer, cityLayer, lakeLayer, shelterLayer;
+function initMap(){
+  map = L.map('map').setView([28.1, 84.2], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {attribution:'© OpenStreetMap contributors', maxZoom:18}).addTo(map);
+  quakeLayer = L.layerGroup().addTo(map);
+  cityLayer = L.layerGroup().addTo(map);
+  lakeLayer = L.layerGroup().addTo(map);
+  shelterLayer = L.layerGroup().addTo(map);
+}
+function depthColor(d){ return d==null?'#f59e0b': d<70?'#f59e0b': d<300?'#ea580c':'#7c2d12'; }
+
+function renderMap(){
+  quakeLayer.clearLayers(); cityLayer.clearLayers(); lakeLayer.clearLayers(); shelterLayer.clearLayers();
+  (DATA.quakes||[]).slice(0,120).forEach(q=>{
+    if(q.mag==null) return;
+    const r = Math.max(4, q.mag*3.2);
+    L.circleMarker([q.lat,q.lon],{radius:r,color:depthColor(q.depth_km),weight:1.5,
+      fillColor:depthColor(q.depth_km),fillOpacity:.55})
+     .bindPopup(`<b>M${q.mag} — ${q.place||''}</b><br>${q.time.slice(0,16).replace('T',' ')} UTC<br>Depth: ${q.depth_km} km${q.in_nepal?'<br><b>In Nepal</b>':''}${q.url?`<br><a href="${q.url}" target="_blank">USGS</a>`:''}`)
+     .addTo(quakeLayer);
+  });
+  const riskById = {}; (DATA.risk||[]).forEach(x=>riskById[x.city.id]=x);
+  Object.values(DATA.weather).forEach(w=>{
+    const c = w.city, rk = riskById[c.id];
+    const col = rk ? RISK_COLOR[rk.overall] : '#6d28d9';
+    L.circleMarker([c.lat,c.lon],{radius:9,color:'#fff',weight:2,fillColor:col,fillOpacity:.95})
+     .bindPopup(`<b>${cityName(c)}</b><br>${rk?`🌧️ ${rk.rain_72h_mm} mm / 72h<br>🌊 ${rk.flood} · ⛰️ ${rk.landslide} · 🌍 ${rk.seismic}<br><b>${rk.overall.toUpperCase()}</b>`:'—'}`)
+     .addTo(cityLayer);
+  });
+  (DATA.glof||[]).forEach(l=>{
+    L.marker([l.lat,l.lon],{icon:L.divIcon({className:'',html:'<div style="background:#0284c7;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid #fff;">◈</div>',iconSize:[22,22]})})
+     .bindPopup(`<b>${LANG==='ne'?l.name_ne:l.name_en}</b> <span class="badge sample">Sample</span><br>${LANG==='ne'?l.status_ne:l.status_en}<br>${t('downstream')}: ${l.downstream_en}`)
+     .addTo(lakeLayer);
+  });
+  (DATA.shelters||[]).forEach(s=>{
+    L.marker([s.lat,s.lon],{icon:L.divIcon({className:'',html:'<div style="background:#16a34a;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid #fff;">⛺</div>',iconSize:[20,20]})})
+     .bindPopup(`<b>${LANG==='ne'?s.name_ne:s.name_en}</b> <span class="badge sample">Sample</span><br>${LANG==='ne'?s.district_ne:s.district_en}<br>${s.capacity_en}`)
+     .addTo(shelterLayer);
+  });
+}
+
+function renderStats(){
+  const o = DATA.overview; if(!o) return;
+  const sev = o.alerts_by_severity||{};
+  document.getElementById('statCards').innerHTML = `
+    <div class="card"><h3>${t('activeAlerts')}</h3><div class="stat">${o.active_alerts} <small>⚠️${sev.warning||0} 🟡${sev.watch||0}</small></div></div>
+    <div class="card"><h3>${t('quakes')}</h3><div class="stat">${o.earthquakes_30d_m45}</div></div>
+    <div class="card"><h3>${t('cities')}</h3><div class="stat">${o.cities_monitored}</div></div>
+    <div class="card"><h3>${t('lakes')}</h3><div class="stat">${o.glof_lakes_watched} <small>sample</small></div></div>`;
+}
+
+function renderBanner(){
+  const b = document.getElementById('alertBanner');
+  const a = DATA.alerts[0];
+  if(!a){ b.className=''; b.innerHTML=''; return; }
+  b.className = 'show '+a.severity;
+  b.innerHTML = `🚨 ${LANG==='ne'?a.headline_ne:a.headline_en}`;
+}
+
+function renderAlerts(){
+  const el = document.getElementById('alertsList');
+  if(!DATA.alerts.length){ el.innerHTML = `<div class="card">${t('noAlerts')}</div>`; return; }
+  el.innerHTML = DATA.alerts.map(a=>`
+    <div class="card alert-card ${a.severity}">
+      <h4>${LANG==='ne'?a.headline_ne:a.headline_en}</h4>
+      <div><span class="badge ${a.data_label==='live'?'live':'model'}">${a.data_label}</span>
+      <span style="font-size:.78rem;color:var(--muted)">${a.hazard} · ${a.severity}</span></div>
+      <div style="margin-top:8px;font-size:.88rem;"><b>${t('actions')}:</b>
+        <ul>${(LANG==='ne'?a.actions_ne:a.actions_en).map(x=>`<li>${x}</li>`).join('')}</ul></div>
+      <div class="meta">${t('issued')}: ${a.issued_at.slice(0,16).replace('T',' ')} · ${t('source')}: ${a.source}${a.usgs_url?` · <a href="${a.usgs_url}" target="_blank">USGS</a>`:''}</div>
+    </div>`).join('');
+}
+
+function wmo(code){
+  const m = {0:['☀️','घमाइलो'],1:['🌤️','आंशिक बादल'],2:['⛅','बादल'],3:['☁️','बादलले ढाकेको'],
+    45:['🌫️','कुहिरो'],48:['🌫️','कुहिरो'],51:['🌦️','सिमसिम'],53:['🌦️','सिमसिम'],55:['🌧️','सिमसिम'],
+    61:['🌧️','वर्षा'],63:['🌧️','वर्षा'],65:['⛈️','मुसलधारे'],71:['🌨️','हिमपात'],73:['🌨️','हिमपात'],
+    75:['❄️','भारी हिमपात'],80:['🌧️','छिटपुट वर्षा'],81:['🌧️','वर्षा'],82:['⛈️','मुसलधारे'],
+    95:['⛈️','चट्याङ'],96:['⛈️','असिना'],99:['⛈️','असिना']};
+  const v = m[code]||['🌡️','मौसम'];
+  return LANG==='ne'?v[1]:v[0];
+}
+function renderCityPills(){
+  document.getElementById('cityPills').innerHTML =
+    Object.values(DATA.weather).map(w=>
+      `<button class="city-pill ${w.city.id===DATA.city?'active':''}" onclick="selectCity('${w.city.id}')">${cityName(w.city)}</button>`).join('');
+}
+function selectCity(id){ DATA.city=id; renderCityPills(); renderForecast(); }
+function renderForecast(){
+  const w = DATA.weather[DATA.city]; if(!w) return;
+  const d = w.daily, c = w.current||{};
+  let h = `<div class="forecast-day" style="font-weight:700;background:#f6efe0;border-radius:8px;padding:10px 8px;">
+    <span>${LANG==='ne'?'अहिले':'Now'}: ${wmo(c.weather_code)} ${c.temperature_2m??'—'}°C</span>
+    <span>💧 ${c.precipitation??0} mm · 💨 ${c.wind_speed_10m??'—'} km/h</span></div>`;
+  (d.time||[]).forEach((date,i)=>{
+    h += `<div class="forecast-day"><span><b>${date}</b> · ${wmo((d.weather_code||[])[i])}</span>
+      <span>${(d.temperature_2m_min||[])[i]}° / ${(d.temperature_2m_max||[])[i]}°C</span>
+      <span>🌧️ ${(d.precipitation_sum||[])[i]??0} mm (${(d.precipitation_probability_max||[])[i]??0}%)</span></div>`;
+  });
+  document.getElementById('forecastBody').innerHTML = h;
+}
+
+function renderRisk(){
+  document.getElementById('riskBody').innerHTML = (DATA.risk||[]).map(r=>`
+    <tr><td><b>${cityName(r.city)}</b></td><td>${r.rain_72h_mm} mm</td>
+    <td><span class="lvl ${r.flood}">${r.flood}</span></td>
+    <td><span class="lvl ${r.landslide}">${r.landslide}</span></td>
+    <td><span class="lvl ${r.seismic}">${r.seismic}</span></td>
+    <td><span class="lvl ${r.overall}">${LANG==='ne'?r.overall_ne:r.overall}</span></td></tr>`).join('');
+}
+
+function renderGlof(){
+  document.getElementById('glofGrid').innerHTML = (DATA.glof||[]).map(l=>`
+    <div class="card"><h3>${LANG==='ne'?l.name_ne:l.name_en} <span class="badge sample">Sample</span></h3>
+    <div><span class="lvl ${l.level==='warning'?'high':'moderate'}">${LANG==='ne'?l.status_ne:l.status_en}</span></div>
+    <div style="font-size:.82rem;color:var(--muted);margin-top:8px;">${t('downstream')}: ${l.downstream_en}</div></div>`).join('');
+}
+function renderShelters(){
+  document.getElementById('shelterGrid').innerHTML = (DATA.shelters||[]).map(s=>`
+    <div class="card"><h3>⛺ ${LANG==='ne'?s.name_ne:s.name_en} <span class="badge sample">Sample</span></h3>
+    <div style="font-size:.88rem;">${LANG==='ne'?s.district_ne:s.district_en}</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:6px;">${s.capacity_en}</div></div>`).join('');
+}
+const GUIDES = {
+  earthquake:{en:'🌍 Earthquake',ne:'🌍 भूकम्प',items_en:['Drop, cover and hold on','Move to open ground after shaking','Expect aftershocks — check gas/power'],
+    items_ne:['निहुरनुहोस्, छोप्नुहोस्, समात्नुहोस्','कम्पनपछि खुला ठाउँमा जानुहोस्','परकम्प आउन सक्छ — ग्यास/बिजुली जाँच्नुहोस्']},
+  flood:{en:'🌊 Flood',ne:'🌊 बाढी',items_en:['Move to higher ground early','Never cross flooded roads','Keep phone charged, documents dry'],
+    items_ne:['चाँडै अग्लो ठाउँमा जानुहोस्','डुबेको बाटो कहिल्यै नकाट्नुहोस्','फोन चार्ज, कागजात सुख्खा राख्नुहोस्']},
+  landslide:{en:'⛰️ Landslide',ne:'⛰️ पहिरो',items_en:['Leave cracked houses and slopes','Avoid hill highways in heavy rain','Watch for rumbling sounds'],
+    items_ne:['चर्केका घर र भिर छोड्नुहोस्','भारी वर्षामा पहाडी बाटो नजानुहोस्','गडगडाहट सुनेमा सतर्क रहनुहोस्']},
+  glof:{en:'🏔️ GLOF',ne:'🏔️ हिमताल विस्फोट',items_en:['Run uphill immediately on siren','Do not wait for confirmation','Warn others as you move'],
+    items_ne:['साइरन बज्नासाथ उकालो दौडनुहोस्','पुष्टिको पर्खाइ नगर्नुहोस्','जाँदाजाँदै अरूलाई खबर गर्नुहोस्']}
+};
+function renderGuides(){
+  document.getElementById('guideGrid').innerHTML = Object.values(GUIDES).map(g=>`
+    <div class="card guide"><h4>${LANG==='ne'?g.ne:g.en}</h4>
+    <ol>${(LANG==='ne'?g.items_ne:g.items_en).map(x=>`<li>${x}</li>`).join('')}</ol></div>`).join('');
+}
+
+function renderAll(){ renderStats(); renderBanner(); renderAlerts(); renderCityPills(); renderForecast();
+  renderRisk(); renderGlof(); renderShelters(); renderGuides(); renderMap();
+  document.getElementById('updatedAt').textContent = t('updated')+': '+new Date().toLocaleString(); }
+
+async function boot(){
+  initMap();
+  try{
+    const [ov, al, rk, qk, gl, sh] = await Promise.all([
+      get('/api/overview'), get('/api/alerts'), get('/api/risk'),
+      get('/api/earthquakes?days=30&min_magnitude=4.5'), get('/api/glof/lakes'), get('/api/shelters')]);
+    DATA.overview=ov; DATA.alerts=al.alerts; DATA.risk=rk.cities; DATA.quakes=qk.earthquakes;
+    DATA.glof=gl.lakes; DATA.shelters=sh.shelters;
+    const w = await get('/api/weather?city=kathmandu').catch(()=>null);
+    // fetch all cities' weather in parallel
+    const ids = Object.keys(await get('/api/cities').then(r=>Object.fromEntries(r.cities.map(c=>[c.id,c]))));
+    const all = await Promise.all(ids.map(id=>get('/api/weather?city='+id).catch(()=>null)));
+    all.forEach(x=>{ if(x) DATA.weather[x.city.id]=x; });
+    if(!DATA.weather[DATA.city] && all[0]) DATA.city = all[0].city.id;
+  }catch(e){ console.error(e); }
+  document.getElementById('loading').style.display='none';
+  renderAll();
+  setInterval(async()=>{ try{
+    const [ov, al] = await Promise.all([get('/api/overview'), get('/api/alerts')]);
+    DATA.overview=ov; DATA.alerts=al.alerts; renderStats(); renderBanner(); renderAlerts();
+  }catch(e){} }, 600000);
+  setInterval(()=>{ document.getElementById('clock').textContent =
+    new Date().toLocaleString('en-GB',{timeZone:'Asia/Kathmandu',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'}); },1000);
+}
+function tick(){ const el=document.getElementById('clock'); if(el) el.textContent =
+  new Date().toLocaleString('en-GB',{timeZone:'Asia/Kathmandu',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'}); }
+setInterval(tick,1000); tick();
+boot();
+</script>
+</body>
+</html>
