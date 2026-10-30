@@ -629,74 +629,59 @@ def _norm_station(s):
             "data_label": "live", "source": "DHM hydrology.gov.np"}
 
 async def _dhm_ws_fetch(want=("river_test", "rainfall_watch", "river_discharge")):
-    """Manual engine.io v4 + socket.io handshake over long-polling.
-    Sequence matters: 40 (namespace connect) -> wait for server 40 ack ->
-    then 42 client_request emits. Batching emits with the 40 gets dropped."""
+    """DHM river feed over engine.io WebSocket (server kills polling-only
+    sessions right after the socket.io 40 ack — it demands the WS upgrade).
+    wss handshake -> 40 -> wait 40 ack -> 42 client_request emits -> 42 data."""
+    import websockets
     got = {}
-    seen_packets = []
+    seen = []
 
-    def _note(p):
-        seen_packets.append(p[:60])
-
-    async with _make_client(60) as client:
-        r = await client.get(DHM_WS + "?EIO=4&transport=polling")
-        r.raise_for_status()
-        sid = None
-        for p in _eio_parse(r.text):
-            _note(p)
-            if p.startswith("0"):
-                sid = json.loads(p[1:])["sid"]
-        if not sid:
-            raise RuntimeError("no engine.io sid; packets=" + str(seen_packets))
-        q = f"?EIO=4&transport=polling&sid={sid}"
-        hdr = {"Content-Type": "text/plain;charset=UTF-8"}
-
-        async def _poll(seconds, want_events=()):
+    async with websockets.connect(
+            "wss://hydrology.gov.np/gss/socket.io/?EIO=4&transport=websocket",
+            origin="https://hydrology.gov.np",
+            open_timeout=20, close_timeout=5) as ws:
+        async def _recv(seconds):
             import time as _t
             end = _t.monotonic() + seconds
             while _t.monotonic() < end:
-                r = await client.get(DHM_WS + q)
-                if r.status_code != 200:
-                    break
-                for p in _eio_parse(r.text):
-                    _note(p)
-                    if p.startswith("2") and not p.startswith("42"):
-                        # engine.io ping -> must pong or the server kills the session
-                        try:
-                            await client.post(DHM_WS + q, content=_eio_frame("3"),
-                                              headers=hdr)
-                        except Exception:  # noqa: BLE001
-                            pass
-                    elif p.startswith("40"):
-                        got["_sio_connected"] = True
-                    elif p.startswith("42"):
-                        try:
-                            msg = json.loads(p[2:])
-                            if isinstance(msg, list) and len(msg) == 2:
-                                got[msg[0]] = msg[1]
-                        except (ValueError, TypeError):
-                            pass
-                    elif p.startswith("1"):
-                        raise RuntimeError("server closed session; packets=" + str(seen_packets))
-                if "_sio_connected" in got and all(e in got for e in want_events):
+                try:
+                    msg = await asyncio.wait_for(ws.recv(), timeout=2)
+                except (asyncio.TimeoutError, StopAsyncIteration):
+                    continue
+                if isinstance(msg, bytes):
+                    continue
+                seen.append(msg[:60])
+                if msg.startswith("0"):
+                    got["_eio"] = True
+                elif msg == "2" or (msg.startswith("2") and not msg.startswith("42")):
+                    await ws.send("3")  # pong
+                elif msg.startswith("40"):
+                    got["_sio_connected"] = True
+                elif msg.startswith("42"):
+                    try:
+                        m = json.loads(msg[2:])
+                        if isinstance(m, list) and len(m) == 2:
+                            got[m[0]] = m[1]
+                    except (ValueError, TypeError):
+                        pass
+                elif msg.startswith("1"):
+                    raise RuntimeError("server closed WS; seen=" + str(seen))
+                if "_sio_connected" in got and all(e in got for e in want if e != "river_discharge"):
                     return True
-                await asyncio.sleep(1)
-            return False
+            return "_sio_connected" in got
 
-        # 1. socket.io namespace connect, alone
-        r = await client.post(DHM_WS + q, content=_eio_frame("40"), headers=hdr)
-        r.raise_for_status()
-        # 2. wait for the server's 40 ack before emitting anything
-        if not await _poll(15):
-            raise RuntimeError("no socket.io 40 ack; packets=" + str(seen_packets))
-        # 3. now emit the client requests
-        body = "".join(
-            _eio_frame(json.dumps(["client_request", ev], separators=(",", ":")))
-            for ev in want)
-        r = await client.post(DHM_WS + q, content=body, headers=hdr)
-        r.raise_for_status()
-        # 4. collect the data events
-        await _poll(30, want_events=tuple(w for w in want if w != "river_discharge"))
+        # 1. engine.io open
+        if not await _recv(15) or "_eio" not in got:
+            raise RuntimeError("no engine.io WS open; seen=" + str(seen))
+        # 2. socket.io namespace connect
+        await ws.send("40")
+        if not await _recv(15):
+            raise RuntimeError("no socket.io 40 ack over WS; seen=" + str(seen))
+        # 3. request the feeds
+        for ev in want:
+            await ws.send("42" + json.dumps(["client_request", ev], separators=(",", ":")))
+        # 4. collect
+        await _recv(30)
         return got
 
 async def fetch_dhm_rivers():
