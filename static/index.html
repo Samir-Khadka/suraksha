@@ -361,12 +361,12 @@ async function boot(){
       get('/api/earthquakes?days=30&min_magnitude=4.5'), get('/api/glof/lakes'), get('/api/shelters')]);
     DATA.overview=ov; DATA.alerts=al.alerts; DATA.risk=rk.cities; DATA.quakes=qk.earthquakes;
     DATA.glof=gl.lakes; DATA.shelters=sh.shelters;
-    const w = await get('/api/weather?city=kathmandu').catch(()=>null);
-    // fetch all cities' weather in parallel
-    const ids = Object.keys(await get('/api/cities').then(r=>Object.fromEntries(r.cities.map(c=>[c.id,c]))));
-    const all = await Promise.all(ids.map(id=>get('/api/weather?city='+id).catch(()=>null)));
-    all.forEach(x=>{ if(x) DATA.weather[x.city.id]=x; });
-    if(!DATA.weather[DATA.city] && all[0]) DATA.city = all[0].city.id;
+    const w = await get('/api/weather/all').catch(()=>null);
+    (w ? w.cities : []).forEach(x=>{ DATA.weather[x.city.id]=x; });
+    if(!DATA.weather[DATA.city]){
+      const first = Object.keys(DATA.weather)[0];
+      if(first) DATA.city = first;
+    }
   }catch(e){ console.error(e); }
   document.getElementById('loading').style.display='none';
   renderAll();

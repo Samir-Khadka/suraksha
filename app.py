@@ -124,6 +124,16 @@ def _make_client(timeout):
 
 # ------------------------------------------------------------------ cache ---
 _cache: dict = {}
+_stale: dict = {}          # last-good data, served if upstream is down/rate-limited
+_locks = {}                # single-flight locks per resource (prevents stampedes)
+
+def _lock(key):
+    lock = _locks.get(key)
+    if lock is None:
+        import asyncio as _aio
+        lock = _aio.Lock()
+        _locks[key] = lock
+    return lock
 
 def cache_get(key):
     entry = _cache.get(key)
@@ -146,16 +156,41 @@ def haversine_km(lat1, lon1, lat2, lon2):
 def in_nepal(lat, lon):
     return 26.0 <= lat <= 31.0 and 80.0 <= lon <= 89.0
 
+async def _get_with_retry(client, url, tries=3):
+    """GET with backoff on 429/5xx — shared egress IPs get rate-limited."""
+    last = None
+    for i in range(tries):
+        try:
+            resp = await client.get(url)
+            if resp.status_code == 429 and i < tries - 1:
+                await asyncio.sleep(2 * (i + 1))
+                continue
+            resp.raise_for_status()
+            return resp
+        except httpx.HTTPStatusError as e:
+            last = e
+            code = e.response.status_code if e.response is not None else 0
+            if code == 429 and i < tries - 1:
+                await asyncio.sleep(2 * (i + 1))
+                continue
+            raise
+    raise last
+
 async def fetch_usgs():
     """Live earthquake feed from USGS (free, no key). Cached 10 min."""
-    hit = cache_get("usgs")
-    if hit is not None:
-        return hit, True
-    url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson"
-    async with _make_client(25) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        raw = resp.json()
+    async with _lock("usgs"):
+        hit = cache_get("usgs")
+        if hit is not None:
+            return hit, True
+        url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson"
+        try:
+            async with _make_client(25) as client:
+                resp = await _get_with_retry(client, url)
+                raw = resp.json()
+        except Exception:
+            if "usgs" in _stale:                      # graceful degradation
+                return _stale["usgs"], True
+            raise
     quakes = []
     for f in raw.get("features", []):
         p, g = f["properties"], f["geometry"]
@@ -170,29 +205,36 @@ async def fetch_usgs():
         })
     quakes.sort(key=lambda q: q["time"], reverse=True)
     cache_set("usgs", quakes, 600)
+    _stale["usgs"] = quakes
     return quakes, False
 
 async def fetch_weather():
     """Live forecast for all monitored cities from Open-Meteo (free, no key)."""
-    hit = cache_get("weather")
-    if hit is not None:
-        return hit, True
-    lats = ",".join(str(c["lat"]) for c in CITIES)
-    lons = ",".join(str(c["lon"]) for c in CITIES)
-    url = ("https://api.open-meteo.com/v1/forecast?latitude=" + lats + "&longitude=" + lons +
-           "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
-           "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
-           "precipitation_probability_max&timezone=Asia%2FKathmandu&forecast_days=7")
-    async with _make_client(25) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        raw = resp.json()
+    async with _lock("weather"):
+        hit = cache_get("weather")
+        if hit is not None:
+            return hit, True
+        lats = ",".join(str(c["lat"]) for c in CITIES)
+        lons = ",".join(str(c["lon"]) for c in CITIES)
+        url = ("https://api.open-meteo.com/v1/forecast?latitude=" + lats + "&longitude=" + lons +
+               "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
+               "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
+               "precipitation_probability_max&timezone=Asia%2FKathmandu&forecast_days=7")
+        try:
+            async with _make_client(25) as client:
+                resp = await _get_with_retry(client, url)
+                raw = resp.json()
+        except Exception:
+            if "weather" in _stale:                   # graceful degradation
+                return _stale["weather"], True
+            raise
     data = raw if isinstance(raw, list) else [raw]
     out = {}
     for city, w in zip(CITIES, data):
         out[city["id"]] = {"city": city, "current": w.get("current", {}),
                            "daily": w.get("daily", {}), "data_label": "live"}
     cache_set("weather", out, 1800)
+    _stale["weather"] = out
     return out, False
 
 # ------------------------------------------------------------- risk engine --
@@ -364,6 +406,16 @@ async def weather(city: str = Query("kathmandu")):
     return {"city": w["city"], "current": w["current"], "daily": w["daily"],
             "cached": cached, "source": "Open-Meteo", "data_label": "live"}
 
+@app.get("/api/weather/all")
+async def weather_all():
+    """All monitored cities in one response (one upstream call)."""
+    try:
+        data, cached = await fetch_weather()
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"Open-Meteo unreachable: {str(e)[:150]}")
+    return {"cities": list(data.values()), "cached": cached,
+            "source": "Open-Meteo", "data_label": "live"}
+
 @app.get("/api/risk")
 async def risk():
     try:
@@ -412,6 +464,7 @@ async def broadcast(body: BroadcastIn):
     return await dispatch_broadcast(body)
 
 async def _refresh_loop():
+    await asyncio.sleep(60)  # let cold-start traffic settle first
     while True:
         try:
             await fetch_usgs(); await fetch_weather()
