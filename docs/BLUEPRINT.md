@@ -16,7 +16,7 @@
 - New endpoints: `/api/districts` (alias `/api/cities` kept), `/api/weather?district=<id>` (alias `?city=` kept).
 
 ### v0.4 changelog (2026-10-30, "make the Planned badges real")
-- **DHM river gauges LIVE** (`/api/rivers`): reverse-engineered DHM's hydrology.gov.np real-time feed (socket.io `/gss/socket.io`, `client_request` → `river_watch`/`rainfall_watch` events); engine.io polling client in pure httpx; 15-min cache. New "Live River Gauges" section on the dashboard.
+- **DHM river gauges LIVE** (`/api/rivers`): DHM's hydrology.gov.np real-time feed over socket.io `/gss/socket.io` (python-socketio; emit `client_request`→`river_test` on initial connect — `river_watch` is reconnect-only — plus `rainfall_watch`, `river_discharge`; ~180 stations, level/status/trend/district/warning+danager levels); 15-min cache. New "Live River Gauges" section (trend arrows, ⚠️ sensor-suspect flag).
 - **Incident reports LIVE** (`/api/incidents`): GDACS global disaster API filtered to Nepal (free, no key) — e.g. the 2026-08-26 Red-alert Bhotekoshi-Trishuli flood. New "Disaster Incidents" section with GDACS report links.
 - **Sentinel-2 LIVE** (`/api/glof/satellite`): Copernicus OData (free, no key) — latest low-cloud (<30%, fallback <60%) Sentinel-2 scene per priority lake; shown on each GLOF card ("last clear satellite view"). Pixel-level NDWI change detection stays v2.
 - **Source health** (`/api/sources/status`): every upstream probed from the production server; rendered as live dots in Data Sources. BIPAD confirmed unreachable from production too → line now reads Planned with the honest reason; DHM + GDACS used directly instead.
@@ -170,7 +170,7 @@ with feedback loops for verification.
 | NEMRC (seismonepal.gov.np) | Nepal earthquake catalog (ML events USGS misses) | Free | None (scraped) | ✅ LIVE in v0.2 (`/api/earthquakes/nepal`) |
 | ICIMOD + UNDP + GoN (2026 PDGL assessment) | 47 dangerous glacial lakes (21 Nepal / 25 Tibet / 1 India); Sanjeevani priority lakes | Free | Published | ✅ LIVE in v0.2 (verified registry, `/api/glof/lakes` + `/api/glof/summary`) |
 | IOM + MoHA (2013, Nepal Gazette) | 83 designated open spaces / shelters | Free | Published | ✅ LIVE in v0.2 (verified registry, `/api/shelters`) |
-| DHM hydrology.gov.np (socket.io `/gss/socket.io`) | Real-time river water levels (river_watch / rainfall_watch) | Free | None (WS) | ✅ LIVE in v0.4 (`/api/rivers`) |
+| DHM hydrology.gov.np (socket.io `/gss/socket.io`) | Real-time river water levels (~180 stations) | Free | None (WS) | ✅ LIVE in v0.4 (`/api/rivers`). Quirk: initial connect emits `client_request`→`river_test` (river_watch only on reconnect); server replies on `river_test`. python-socketio client. Sensor sanity filter: levels >100 m flagged suspect. |
 | Sentinel-2 / Copernicus | Lake area change detection | Free | Account | 🔜 v2 |
 | GDACS | Global disaster alerts (RSS/API) | Free | None | 🔜 v1 (backup feed) |
 | Own messaging API | SMS/WhatsApp/RCS + OTP dispatch | Free (console) / provider rates | API key | ✅ Adapter in prototype (console), live keys = production step |
