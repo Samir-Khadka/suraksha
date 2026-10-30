@@ -10,6 +10,11 @@
 - Data-honesty labels extended: `live` / `verified` / `model` / `sample` (sample now ~zero).
 - DHM river-watch socket.io endpoint reverse-engineered (`/gss/socket.io`, events `river_watch`/`rainfall_watch`) but sandbox proxy blocks WS POSTs — production integration planned.
 
+### v0.3 changelog (2026-10-30, "all 77 districts")
+- **Coverage expanded from 9 cities to all 77 districts** (Samir's direction): every district has HQ coordinates, hill/Terai flag, province grouping, and bilingual names. Weather (Open-Meteo batch, MET Norway fallback with 10-way concurrency), risk engine, alerts, and map all run on 77 districts.
+- **Frontend**: district picker is now a province-grouped dropdown; risk table defaults to "needs attention" (moderate+) with a show-all-77 toggle, scrollable with sticky header; forecast header names the selected district; stat card reads "Districts monitored: 77".
+- New endpoints: `/api/districts` (alias `/api/cities` kept), `/api/weather?district=<id>` (alias `?city=` kept).
+
 ---
 
 ## 1. Mission
