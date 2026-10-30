@@ -615,13 +615,20 @@ def _norm_station(s):
         lat = lon = None
     status = str(s.get("status", "")).upper()
     level = "danger" if "DANGER" in status else "warning" if "WARNING" in status else "normal"
+    wl = _station_level(s)
+    suspect = wl is not None and wl > 100  # faulty sensor (e.g. 100008.5 m seen live)
+    if suspect:
+        wl = None
     return {"name": _station_name(s), "station_index": s.get("stationIndex"),
-            "lat": lat, "lon": lon, "water_level": _station_level(s),
+            "lat": lat, "lon": lon, "water_level": wl,
+            "sensor_suspect": suspect,
             "status": status or "UNKNOWN", "level": level,
-            "basin": s.get("basin") or s.get(" Basin"), "river": s.get("river"),
+            "trend": s.get("steady"), "district": s.get("district"),
+            "basin": s.get("basin"), "river": s.get("river"),
+            "warning_level": s.get("warning_level"), "danger_level": s.get("danger_level"),
             "data_label": "live", "source": "DHM hydrology.gov.np"}
 
-async def _dhm_ws_fetch(want=("river_watch", "rainfall_watch")):
+async def _dhm_ws_fetch(want=("river_test", "rainfall_watch", "river_discharge")):
     """socket.io client (polling → websocket upgrade) against DHM's feed.
     Collects every event the server emits after our client_request."""
     import socketio
@@ -678,7 +685,7 @@ async def fetch_dhm_rivers():
                 if isinstance(v, list) and v and isinstance(v[0], dict):
                     return v
             return []
-        raw = _pick("river_watch", "river_test", "river", "rivers")
+        raw = _pick("river_test", "river_watch", "river", "rivers")
         stations = [_norm_station(s) for s in raw if isinstance(s, dict)]
         if not stations:
             # Never cache or label an empty feed as live — the WS gave nothing.
