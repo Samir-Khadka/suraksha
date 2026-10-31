@@ -1035,15 +1035,28 @@ async def build_alerts():
             if lvl >= 2:  # high or critical
                 n += 1
                 sev = "warning" if lvl == 3 else "watch"
+                # Honest headline: if a live DHM gauge drove this flood alert,
+                # say so — don't attribute it to forecast rain.
+                if hazard == "flood" and r.get("river_override"):
+                    st = r["river_station"] or "DHM gauge"
+                    headline_en = (f"Flood {sev}: {city['name_en']} — {st} "
+                                   f"above {r['river_override'].upper()} level (live DHM reading)")
+                    headline_ne = (f"{'बाढी'} {'चेतावनी' if sev == 'warning' else 'निगरानी'}: "
+                                   f"{city['name_ne']} — {st} "
+                                   f"{'खतरा' if r['river_override'] == 'danger' else 'चेतावनी'} तहभन्दा माथि (लाइभ DHM)")
+                    src = "dhm-live"
+                else:
+                    headline_en = f"{hazard.title()} {sev}: {city['name_en']} — {r['rain_72h_mm']} mm rain expected in 72h"
+                    headline_ne = f"{'बाढी' if hazard == 'flood' else 'पहिरो'} {'चेतावनी' if sev == 'warning' else 'निगरानी'}: {city['name_ne']} — ७२ घण्टामा {r['rain_72h_mm']} मिमि वर्षा"
+                    src = "suraksha-heuristic"
                 alerts.append({
                     "id": f"{hazard}-{city['id']}-{n}",
                     "severity": sev, "hazard": hazard,
                     "area_en": city["name_en"], "area_ne": city["name_ne"],
-                    "headline_en": f"{hazard.title()} {sev}: {city['name_en']} — {r['rain_72h_mm']} mm rain expected in 72h",
-                    "headline_ne": f"{'बाढी' if hazard == 'flood' else 'पहिरो'} {'चेतावनी' if sev == 'warning' else 'निगरानी'}: {city['name_ne']} — ७२ घण्टामा {r['rain_72h_mm']} मिमि वर्षा",
+                    "headline_en": headline_en, "headline_ne": headline_ne,
                     "actions_en": ACTIONS[hazard]["en"], "actions_ne": ACTIONS[hazard]["ne"],
-                    "issued_at": r["computed_at"], "source": "suraksha-heuristic",
-                    "data_label": "model",
+                    "issued_at": r["computed_at"], "source": src,
+                    "data_label": "live" if src == "dhm-live" else "model",
                 })
     # earthquake alerts: M5.5+ inside Nepal in last 7 days (LIVE sources)
     # NEMRC included — it catches local M4+ events the USGS feed misses.
