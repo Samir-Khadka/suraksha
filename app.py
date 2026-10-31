@@ -923,6 +923,13 @@ async def compute_risk():
     except Exception:
         quakes = []
     try:
+        nemrc, _ = await fetch_nemrc()
+    except Exception:
+        nemrc = []
+    # NEMRC catches local M4+ events the USGS M4.5 feed misses — merge for
+    # fuller seismic scoring (deduped; USGS entry wins on overlap).
+    quakes = merge_quake_catalogs(quakes, nemrc)
+    try:
         rivers, _ = await fetch_dhm_rivers()
         stations = [s for s in rivers.get("stations", [])
                     if not s.get("sensor_suspect") and s.get("lat") is not None]
@@ -986,10 +993,38 @@ async def compute_risk():
     results.sort(key=lambda r: order.get(r["overall"], -1), reverse=True)
     return results
 
+def merge_quake_catalogs(usgs, nemrc):
+    """Merge USGS + NEMRC catalogs, deduping the same event seen by both.
+    Same event = within 60 min and 50 km. USGS entry wins (has PAGER/MMI/depth)."""
+    merged = list(usgs or [])
+    for nq in nemrc or []:
+        try:
+            nt = datetime.fromisoformat(nq["time"]).timestamp()
+        except (KeyError, ValueError):
+            continue
+        dup = False
+        for uq in merged:
+            try:
+                ut = datetime.fromisoformat(uq["time"]).timestamp()
+            except (KeyError, ValueError):
+                continue
+            if abs(nt - ut) <= 3600 and haversine_km(
+                    nq["lat"], nq["lon"], uq["lat"], uq["lon"]) <= 50:
+                dup = True
+                break
+        if not dup:
+            merged.append(nq)
+    return merged
+
 async def build_alerts():
     """Generate alerts from live data + heuristic thresholds."""
     risk = await compute_risk()
     quakes, _ = await fetch_usgs()
+    try:
+        nemrc, _ = await fetch_nemrc()
+    except Exception:
+        nemrc = []
+    quakes = merge_quake_catalogs(quakes, nemrc)
     alerts, n = [], 0
     for r in risk:
         city = r["city"]
@@ -1010,21 +1045,25 @@ async def build_alerts():
                     "issued_at": r["computed_at"], "source": "suraksha-heuristic",
                     "data_label": "model",
                 })
-    # earthquake alerts: M5.5+ inside Nepal in last 7 days (LIVE source)
+    # earthquake alerts: M5.5+ inside Nepal in last 7 days (LIVE sources)
+    # NEMRC included — it catches local M4+ events the USGS feed misses.
     week_ago = time.time() - 7 * 86400
     for q in quakes:
         qt = datetime.fromisoformat(q["time"]).timestamp()
         if q["in_nepal"] and (q["mag"] or 0) >= 5.5 and qt >= week_ago:
             n += 1
-            alerts.append({
+            src = "nemrc-live" if q.get("source") == "NEMRC" else "usgs-live"
+            alert = {
                 "id": f"earthquake-{q['id']}", "severity": "warning", "hazard": "earthquake",
                 "area_en": q["place"] or "Nepal", "area_ne": "नेपाल",
                 "headline_en": f"Earthquake M{q['mag']}: {q['place']}",
                 "headline_ne": f"भूकम्प M{q['mag']}: {q['place']}",
                 "actions_en": ACTIONS["earthquake"]["en"], "actions_ne": ACTIONS["earthquake"]["ne"],
-                "issued_at": q["time"], "source": "usgs-live", "data_label": "live",
-                "usgs_url": q["url"],
-            })
+                "issued_at": q["time"], "source": src, "data_label": "live",
+            }
+            if q.get("url"):
+                alert["usgs_url"] = q["url"]
+            alerts.append(alert)
     order = {"emergency": 0, "warning": 1, "watch": 2, "advisory": 3}
     alerts.sort(key=lambda a: order.get(a["severity"], 9))
     return alerts
