@@ -353,6 +353,10 @@ async def fetch_usgs():
             "time": datetime.fromtimestamp(p["time"] / 1000, tz=timezone.utc).isoformat(),
             "lat": lat, "lon": lon, "depth_km": depth,
             "tsunami": bool(p.get("tsunami")), "url": p.get("url"),
+            "mmi": p.get("mmi"),                       # felt intensity (Did You Feel It)
+            "pager": p.get("alert"),                   # PAGER: green/yellow/orange/red
+            "felt": p.get("felt"),                     # number of felt reports
+            "sig": p.get("sig"),                       # USGS significance score
             "in_nepal": in_nepal(lat, lon),
             "dist_to_kathmandu_km": round(haversine_km(lat, lon, 27.7172, 85.3240), 1),
         })
@@ -406,7 +410,8 @@ async def _fetch_met_city(client, city):
            "weather_code": _met_wmo((first["data"].get("next_1_hours") or {})
                                     .get("summary", {}).get("symbol_code", ""))}
     days, order = {}, []
-    for e in ts:
+    hr_max = 0.0  # flash-flood signal: max hourly precip rate over the next 72h
+    for i, e in enumerate(ts):
         d = _npt_date(e["time"])
         if d not in days:
             days[d] = {"tmin": 1e9, "tmax": -1e9, "precip": 0.0, "wet": 0, "n": 0,
@@ -420,6 +425,8 @@ async def _fetch_met_city(client, city):
         dd["precip"] += p; dd["n"] += 1
         if p > 0.2:
             dd["wet"] += 1
+        if i < 72:
+            hr_max = max(hr_max, p)
         sym = ((e["data"].get("next_6_hours") or {}).get("summary", {})
                .get("symbol_code") or (e["data"].get("next_12_hours") or {})
                .get("summary", {}).get("symbol_code") or "")
@@ -442,7 +449,9 @@ async def _fetch_met_city(client, city):
         daily["precipitation_probability_max"].append(
             round(100 * dd["wet"] / dd["n"]) if dd["n"] else 0)
     return {"city": city, "current": cur, "daily": daily,
-            "data_label": "live", "provider": "MET Norway"}
+            "data_label": "live", "provider": "MET Norway",
+            "max_hourly_mm": round(hr_max, 1),
+            "antecedent_7d_mm": None}  # MET timeseries has no past days — honest gap
 
 def inst_of(e):
     try:
@@ -474,18 +483,46 @@ async def _fetch_weather_openmeteo():
     lons = ",".join(str(c["lon"]) for c in DISTRICTS)
     url = ("https://api.open-meteo.com/v1/forecast?latitude=" + lats + "&longitude=" + lons +
            "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
+           "&hourly=precipitation"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"
-           "precipitation_probability_max&timezone=Asia%2FKathmandu&forecast_days=7")
+           "precipitation_probability_max&timezone=Asia%2FKathmandu&forecast_days=7&past_days=7")
     async with _make_client(25) as client:
         resp = await _get_with_retry(client, url)
         raw = resp.json()
     data = raw if isinstance(raw, list) else [raw]
+    today = _today_npt()
     out = {}
     for city, w in zip(DISTRICTS, data):
+        daily = w.get("daily", {})
+        times = daily.get("time") or []
+        # past_days=7 prefixes 7 past days — find today's index for the forecast slice
+        fi = next((i for i, t in enumerate(times) if t >= today), 7)
+        precips = daily.get("precipitation_sum") or []
+        antecedent = round(sum(p or 0 for p in precips[max(0, fi - 7):fi]), 1)
+        # max hourly rate over the next 72h (flash-flood signal)
+        hourly = w.get("hourly", {})
+        htimes = hourly.get("time") or []
+        hprec = hourly.get("precipitation") or []
+        now_iso = datetime.now(timezone.utc).isoformat()
+        hi = next((i for i, t in enumerate(htimes)
+                   if t.replace("Z", "+00:00") >= now_iso[:16]), 0)
+        max_hourly = round(max(((hprec[i] or 0) for i in range(hi, min(hi + 72, len(hprec)))), default=0), 1)
         out[city["id"]] = {"city": city, "current": w.get("current", {}),
-                           "daily": w.get("daily", {}), "data_label": "live",
-                           "provider": "Open-Meteo"}
+                           "daily": daily, "data_label": "live",
+                           "provider": "Open-Meteo",
+                           "forecast_start_idx": fi,
+                           "max_hourly_mm": max_hourly,
+                           "antecedent_7d_mm": antecedent}
     return out
+
+def _today_npt():
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("Asia/Kathmandu")
+    except Exception:  # noqa: BLE001
+        from datetime import timedelta
+        tz = timezone(timedelta(hours=5, minutes=45))
+    return datetime.now(tz).date().isoformat()
 
 async def _fetch_weather_met():
     sem = asyncio.Semaphore(10)
@@ -816,24 +853,66 @@ async def fetch_lake_scenes():
         return out, False
 
 # ------------------------------------------------------- source probing ----
-def flood_level(rain72):
-    if rain72 >= 100: return 3
-    if rain72 >= 50: return 2
-    if rain72 >= 25: return 1
+def flood_level(rain72, max_hourly=None):
+    """Flood heuristic v2: 72h totals PLUS hourly intensity (flash floods kill
+    on bursts, not totals). Intensity overrides totals upward, never downward."""
+    if rain72 >= 100: lvl = 3
+    elif rain72 >= 50: lvl = 2
+    elif rain72 >= 25: lvl = 1
+    else: lvl = 0
+    if max_hourly is not None:
+        if max_hourly >= 50: lvl = max(lvl, 3)   # cloudburst-class
+        elif max_hourly >= 30: lvl = max(lvl, 2)  # intense downpour
+        elif max_hourly >= 15: lvl = max(lvl, 1)
+    return lvl
+
+def landslide_level(rain72, hill, antecedent=None):
+    """Landslide heuristic v2: saturated soil slides on less rain. Antecedent
+    7-day rainfall scales thresholds down (wet soil = lower trigger)."""
+    if not hill: return 0
+    scale = 1.0
+    if antecedent is not None:
+        if antecedent >= 150: scale = 0.6    # saturated
+        elif antecedent >= 80: scale = 0.8   # wet
+    if rain72 >= 80 * scale: return 3
+    if rain72 >= 40 * scale: return 2
+    if rain72 >= 20 * scale: return 1
     return 0
 
-def landslide_level(rain72, hill):
-    if not hill: return 0
-    if rain72 >= 80: return 3
-    if rain72 >= 40: return 2
-    if rain72 >= 20: return 1
-    return 0
+def seismic_level(quakes, lat, lon):
+    """Seismic heuristic v2: PAGER alert level + felt MMI + depth, not just
+    quake counts. USGS live fields — degrades to the old count rule."""
+    recent = [q for q in quakes
+              if haversine_km(q["lat"], q["lon"], lat, lon) <= 300]
+    if not recent:
+        return 0, []
+    lvl = 1
+    if len(recent) >= 3:
+        lvl = 2
+    for q in recent:
+        pager = (q.get("pager") or "").lower()
+        if pager == "red": lvl = max(lvl, 3)
+        elif pager == "orange": lvl = max(lvl, 2)
+        mmi = q.get("mmi") or 0
+        if mmi >= 7: lvl = max(lvl, 3)
+        elif mmi >= 6: lvl = max(lvl, 2)
+        # shallow big quake nearby = high damage potential
+        d = haversine_km(q["lat"], q["lon"], lat, lon)
+        if (q.get("mag") or 0) >= 6.0 and (q.get("depth_km") or 99) < 30 and d <= 150:
+            lvl = max(lvl, 2)
+    return lvl, recent
 
 async def compute_risk():
-    """Transparent heuristic risk engine — MODEL label, not an official forecast.
+    """Transparent heuristic risk engine v2 — MODEL label, not an official forecast.
 
-    Degrades gracefully: if the weather upstream is unreachable (rate-limited),
-    flood/landslide show 'unknown' instead of failing the whole dashboard.
+    Accuracy upgrades:
+    - Flood: 72h rain totals + max hourly intensity (flash floods) + LIVE DHM
+      river-gauge readings override the rain heuristic (a river already above
+      danger level means flood risk regardless of forecast).
+    - Landslide: 7-day antecedent rainfall scales thresholds (saturated soil).
+    - Seismic: USGS PAGER alert level + felt MMI + depth, not just quake counts.
+    Degrades gracefully: any unreachable upstream yields 'unknown' for its
+    hazard instead of failing the whole dashboard.
     """
     try:
         weather, _ = await fetch_weather()
@@ -843,33 +922,58 @@ async def compute_risk():
         quakes, _ = await fetch_usgs()
     except Exception:
         quakes = []
+    try:
+        rivers, _ = await fetch_dhm_rivers()
+        stations = [s for s in rivers.get("stations", [])
+                    if not s.get("sensor_suspect") and s.get("lat") is not None]
+    except Exception:
+        stations = []
     now = time.time()
     results = []
     for city in DISTRICTS:
+        river_override = None
+        river_station = None
         if weather and city["id"] in weather:
             w = weather[city["id"]]
             daily = w["daily"]
-            precips = (daily.get("precipitation_sum") or [])[:3]
+            fi = w.get("forecast_start_idx", 0)
+            precips = (daily.get("precipitation_sum") or [])[fi:fi + 3]
             rain72 = round(sum(p or 0 for p in precips), 1)
-            probs = (daily.get("precipitation_probability_max") or [])[:3]
+            probs = (daily.get("precipitation_probability_max") or [])[fi:fi + 3]
             prob72 = max([p or 0 for p in probs] or [0])
-            fl, ls = flood_level(rain72), landslide_level(rain72, city["hill"])
-            fcast = (daily.get("time") or [])[:7]
+            max_hourly = w.get("max_hourly_mm")
+            antecedent = w.get("antecedent_7d_mm")
+            fl = flood_level(rain72, max_hourly)
+            ls = landslide_level(rain72, city["hill"], antecedent)
+            fcast = (daily.get("time") or [])[fi:fi + 7]
         else:
             rain72, prob72, fcast = None, None, []
+            max_hourly, antecedent = None, None
             fl, ls = -1, -1  # unknown
-        # seismic: M4.5+ within 300 km in last 30 days
-        recent = [q for q in quakes
-                  if haversine_km(q["lat"], q["lon"], city["lat"], city["lon"]) <= 300]
-        if len(recent) >= 3: seis = 2
-        elif len(recent) >= 1: seis = 1
-        else: seis = 0
+        # DHM gauge override: real river readings beat the rain heuristic.
+        # Nearest non-suspect station within 75 km of the district HQ.
+        if fl >= 0 and stations:
+            best, best_d = None, 75.0
+            for s in stations:
+                d = haversine_km(s["lat"], s["lon"], city["lat"], city["lon"])
+                if d < best_d:
+                    best, best_d = s, d
+            if best:
+                river_station = f"{best['name']} ({best_d:.0f} km)"
+                if best["level"] == "danger":
+                    fl, river_override = 3, "danger"
+                elif best["level"] == "warning":
+                    fl, river_override = max(fl, 2), "warning"
+        # seismic: PAGER/MMI/depth-aware
+        seis, recent = seismic_level(quakes, city["lat"], city["lon"])
         known = [x for x in (fl, ls, seis) if x >= 0]
         overall = max(known) if known else -1
         def lvl(x): return "unknown" if x < 0 else LEVELS[x]
         results.append({
             "city": city, "rain_72h_mm": rain72, "rain_prob_max": prob72,
+            "max_hourly_mm": max_hourly, "antecedent_7d_mm": antecedent,
             "flood": lvl(fl), "landslide": lvl(ls), "seismic": lvl(seis),
+            "river_override": river_override, "river_station": river_station,
             "overall": lvl(overall),
             "overall_ne": "अज्ञात" if overall < 0 else LEVEL_NE[LEVELS[overall]],
             "recent_quakes_300km": len(recent),
