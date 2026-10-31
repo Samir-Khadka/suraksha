@@ -134,7 +134,7 @@
       <table><thead style="position:sticky;top:0;background:var(--card);z-index:1;"><tr>
         <th data-i18n="thCity">District</th><th data-i18n="thRain">Rain 72h</th>
         <th data-i18n="thFlood">Flood</th><th data-i18n="thSlide">Landslide</th>
-        <th data-i18n="thSeis">Seismic</th><th data-i18n="thOverall">Overall</th>
+        <th data-i18n="thSeis">Seismic</th><th data-i18n="thGauge">River gauge</th><th data-i18n="thOverall">Overall</th>
       </tr></thead><tbody id="riskBody"></tbody></table>
     </div>
     <div style="font-size:.78rem;color:var(--muted);margin-top:6px;" data-i18n="modelNote">
@@ -204,7 +204,7 @@ const I18N = {
   en:{loading:"Loading live data…",tagline:"Nepal Disaster Management & Early Warning System",
     liveMap:"Live Hazard Map",lgQuake:"Earthquake (size = magnitude)",lgCity:"City risk",lgLake:"Glacial lake (verified)",lgShelter:"Shelter (verified)",lgNemrc:"Nepal quakes (NEMRC)",
     alerts:"Active Alerts",forecast:"7-Day Weather Forecast",srcMeteo:"Source: Open-Meteo (free, no key)",
-    riskTable:"District Risk Overview",thCity:"District",thRain:"Rain 72h",thFlood:"Flood",thSlide:"Landslide",thSeis:"Seismic",thOverall:"Overall",
+    riskTable:"District Risk Overview",thCity:"District",thRain:"Rain 72h",thFlood:"Flood",thSlide:"Landslide",thSeis:"Seismic",thGauge:"River gauge",thOverall:"Overall",
     modelNote:"Prototype heuristic: 72h forecast rainfall thresholds. Not an official DHM/NDRRMA forecast.",
     glof:"GLOF Watch — Glacial Lakes",shelters:"Emergency Shelters",guides:"What To Do — Safety Guides",sources:"Data Sources",
     srcUsgs:"real-time global earthquake feed, no key needed",srcMeteo2:"current + 16-day forecast, no key needed",
@@ -216,7 +216,7 @@ const I18N = {
   ne:{loading:"लाइभ डाटा लोड हुँदैछ…",tagline:"नेपाल विपद् व्यवस्थापन तथा पूर्वसूचना प्रणाली",
     liveMap:"लाइभ जोखिम नक्सा",lgQuake:"भूकम्प (आकार = म्याग्निच्युड)",lgCity:"शहर जोखिम",lgLake:"हिमताल (प्रमाणित)",lgShelter:"आश्रयस्थल (प्रमाणित)",lgNemrc:"नेपाल भूकम्प (NEMRC)",
     alerts:"सक्रिय सतर्कताहरू",forecast:"७-दिने मौसम पूर्वानुमान",srcMeteo:"स्रोत: Open-Meteo (नि:शुल्क)",
-    riskTable:"जिल्ला जोखिम विवरण",thCity:"जिल्ला",thRain:"७२घ. वर्षा",thFlood:"बाढी",thSlide:"पहिरो",thSeis:"भूकम्पीय",thOverall:"समग्र",
+    riskTable:"जिल्ला जोखिम विवरण",thCity:"जिल्ला",thRain:"७२घ. वर्षा",thFlood:"बाढी",thSlide:"पहिरो",thSeis:"भूकम्पीय",thGauge:"नदी गेज",thOverall:"समग्र",
     modelNote:"प्रोटोटाइप अनुमान: ७२-घण्टे वर्षा थ्रेसहोल्ड। आधिकारिक DHM/NDRRMA पूर्वानुमान होइन।",
     glof:"हिमताल निगरानी",shelters:"आपतकालीन आश्रयस्थल",guides:"के गर्ने — सुरक्षा निर्देशिका",sources:"डाटा स्रोतहरू",
     srcUsgs:"वास्तविक-समय विश्व भूकम्प फिड",srcMeteo2:"हालको + १६-दिने पूर्वानुमान",
@@ -274,9 +274,10 @@ function renderMap(){
   Object.values(DATA.weather).forEach(w=>{
     const c = w.city, rk = riskById[c.id];
     const col = rk ? (RISK_COLOR[rk.overall]||'#a8a29e') : '#6d28d9';
-    const rainTxt = rk ? (rk.rain_72h_mm!=null ? `🌧️ ${rk.rain_72h_mm} mm / 72h<br>` : `🌧️ —<br>`) : '';
+    const rainTxt = rk ? (rk.rain_72h_mm!=null ? `🌧️ ${rk.rain_72h_mm} mm / 72h${rk.max_hourly_mm!=null?` (max ${rk.max_hourly_mm}/h)`:''}<br>` : `🌧️ —<br>`) : '';
+    const gaugeTxt = rk && rk.river_station ? `📍 ${rk.river_station}${rk.river_override?` <b>🌊${rk.river_override.toUpperCase()}</b>`:''}<br>` : '';
     L.circleMarker([c.lat,c.lon],{radius:6,color:'#fff',weight:1.5,fillColor:col,fillOpacity:.9})
-     .bindPopup(`<b>${cityName(c)}</b><br>${rk?`${rainTxt}🌊 ${rk.flood} · ⛰️ ${rk.landslide} · 🌍 ${rk.seismic}<br><b>${rk.overall.toUpperCase()}</b>`:'—'}`)
+     .bindPopup(`<b>${cityName(c)}</b><br>${rk?`${rainTxt}${gaugeTxt}🌊 ${rk.flood} · ⛰️ ${rk.landslide} · 🌍 ${rk.seismic}<br><b>${rk.overall.toUpperCase()}</b>`:'—'}`)
      .addTo(cityLayer);
   });
   (DATA.glof||[]).forEach(l=>{
@@ -367,12 +368,18 @@ function renderRisk(){
   const rows = (DATA.risk||[]).filter(r=>RISK_FILTER==='all' || ['moderate','high','critical'].includes(r.overall));
   document.getElementById('riskCount').textContent =
     RISK_FILTER==='all' ? `${rows.length} / ${DATA.risk.length}` : `${rows.length} ${t('needAttention')}`;
-  document.getElementById('riskBody').innerHTML = rows.map(r=>`
-    <tr><td><b>${cityName(r.city)}</b></td><td>${r.rain_72h_mm==null?'—':r.rain_72h_mm+' mm'}</td>
+  document.getElementById('riskBody').innerHTML = rows.map(r=>{
+    const gauge = r.river_station ? r.river_station.split(' (')[0] : '—';
+    const ovBadge = r.river_override ? ` <span class="badge live" title="${LANG==='ne'?'DHM गेजबाट':'from DHM gauge'}">🌊${r.river_override}</span>` : '';
+    const rainDetail = r.rain_72h_mm==null ? '—' :
+      `${r.rain_72h_mm} mm${r.max_hourly_mm!=null?`<br><small style="color:var(--muted)">max ${r.max_hourly_mm}/h</small>`:''}${r.antecedent_7d_mm!=null?`<br><small style="color:var(--muted)">7d: ${r.antecedent_7d_mm}</small>`:''}`;
+    return `
+    <tr><td><b>${cityName(r.city)}</b></td><td>${rainDetail}</td>
     <td><span class="lvl ${r.flood}">${r.flood}</span></td>
     <td><span class="lvl ${r.landslide}">${r.landslide}</span></td>
     <td><span class="lvl ${r.seismic}">${r.seismic}</span></td>
-    <td><span class="lvl ${r.overall}">${LANG==='ne'?r.overall_ne:r.overall}</span></td></tr>`).join('');
+    <td style="font-size:.8rem;">${gauge}${ovBadge}</td>
+    <td><span class="lvl ${r.overall}">${LANG==='ne'?r.overall_ne:r.overall}</span></td></tr>`;}).join('');
 }
 function toggleRiskFilter(){
   RISK_FILTER = RISK_FILTER==='all' ? 'attention' : 'all';
