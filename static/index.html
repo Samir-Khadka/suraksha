@@ -7,125 +7,164 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root{
-    --bg:#FAF6ED; --card:#ffffff; --ink:#2b2620; --muted:#8a8177;
-    --violet:#6d28d9; --violet-deep:#4c1d95; --gold:#b45309;
-    --low:#16a34a; --moderate:#ca8a04; --high:#ea580c; --critical:#dc2626;
-    --line:#f0e8d8; --shadow:0 2px 14px rgba(60,40,10,.08);
+    --bg:#FAF8F1; --card:#ffffff; --ink:#1C1917; --muted:#78716C; --faint:#A8A29E;
+    --line:#EAE3D3; --accent:#5B21B6; --accent-soft:#F4EFFF;
+    --low:#16a34a; --moderate:#B45309; --high:#EA580C; --critical:#DC2626;
+    --r:16px; --shadow:0 1px 2px rgba(28,25,23,.05), 0 8px 24px rgba(28,25,23,.06);
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{font-family:'Segoe UI',system-ui,'Noto Sans Devanagari',sans-serif; background:var(--bg); color:var(--ink);}
-  /* ---------- sticky header ---------- */
-  header{position:sticky; top:0; z-index:500; background:linear-gradient(135deg,#4c1d95,#6d28d9); color:#fff;
-    padding:10px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
-    box-shadow:0 2px 12px rgba(76,29,149,.3);}
-  header h1{font-size:1.25rem; letter-spacing:.3px;}
-  header h1 .ne{font-weight:400; opacity:.92;}
-  .hdr-right{display:flex; gap:10px; align-items:center;}
-  #clock{font-size:.85rem; opacity:.9;}
-  .lang-toggle{background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); color:#fff;
-    border-radius:999px; padding:6px 14px; cursor:pointer; font-size:.9rem;}
-  .lang-toggle:hover{background:rgba(255,255,255,.28);}
-  .threat-pill{font-size:.78rem; font-weight:700; padding:6px 14px; border-radius:999px;
-    background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.45); text-transform:uppercase; letter-spacing:.6px;}
-  .threat-pill.advisory{background:#16a34a;} .threat-pill.watch{background:#d97706;}
-  .threat-pill.warning{background:#ea580c;} .threat-pill.emergency{background:#dc2626; animation:pulse 1.6s infinite;}
-  @keyframes pulse{50%{filter:brightness(1.2);}}
-  /* ---------- hero : situation now ---------- */
-  .hero{background:linear-gradient(160deg,#5b21b6 0%,#7c3aed 60%,#8b5cf6 100%); color:#fff; padding:26px 20px 30px;}
-  .hero-inner{max-width:1280px; margin:0 auto;}
-  .hero h2{font-size:1.05rem; font-weight:600; opacity:.95; margin-bottom:4px;}
-  .hero .hero-sub{font-size:.82rem; opacity:.8; margin-bottom:16px;}
-  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px;}
-  .kpi{background:#fff; color:var(--ink); border-radius:16px; padding:16px 18px; box-shadow:0 6px 22px rgba(40,10,90,.25);
-    border-top:5px solid var(--violet); position:relative; overflow:hidden;}
-  .kpi.ok{border-top-color:var(--low);} .kpi.warn{border-top-color:var(--moderate);}
-  .kpi.bad{border-top-color:var(--high);} .kpi.crit{border-top-color:var(--critical);}
-  .kpi .lbl{font-size:.72rem; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin-bottom:6px;}
-  .kpi .num{font-size:2.1rem; font-weight:800; line-height:1.05;}
-  .kpi .num small{font-size:.85rem; font-weight:400; color:var(--muted);}
-  .kpi .detail{font-size:.8rem; color:var(--muted); margin-top:6px; line-height:1.45;}
-  .kpi .big-emoji{position:absolute; right:10px; top:8px; font-size:1.6rem; opacity:.28;}
+  body{font-family:'Segoe UI',system-ui,'Noto Sans Devanagari',sans-serif; background:var(--bg); color:var(--ink);
+    -webkit-font-smoothing:antialiased;}
+  .num, .kpi .num, td b{font-variant-numeric:tabular-nums;}
+  /* ---------- header ---------- */
+  header{position:sticky; top:0; z-index:500; background:rgba(255,255,255,.9);
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line); padding:12px 22px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+  .brand{display:flex; align-items:baseline; gap:9px;}
+  .brand .mark{font-size:1.25rem;}
+  .brand h1{font-size:1.12rem; font-weight:700; letter-spacing:-.2px;}
+  .brand h1 .ne{font-weight:400; color:var(--muted);}
+  .brand .tag{font-size:.72rem; color:var(--faint); border-left:1px solid var(--line); padding-left:9px;}
+  .hdr-right{display:flex; gap:12px; align-items:center;}
+  #clock{font-size:.82rem; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .threat-pill{font-size:.72rem; font-weight:700; padding:6px 13px; border-radius:999px; letter-spacing:.5px; text-transform:uppercase;
+    background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0;}
+  .threat-pill.advisory{background:#F0FDF4; color:#15803D; border-color:#BBF7D0;}
+  .threat-pill.watch{background:#FFFBEB; color:#B45309; border-color:#FDE68A;}
+  .threat-pill.warning{background:#FFF7ED; color:#C2410C; border-color:#FDBA74;}
+  .threat-pill.emergency{background:#FEF2F2; color:#B91C1C; border-color:#FECACA;}
+  .lang-toggle{background:#fff; border:1px solid var(--line); color:var(--ink);
+    border-radius:999px; padding:7px 15px; cursor:pointer; font-size:.82rem; font-weight:600; transition:all .15s;}
+  .lang-toggle:hover{border-color:var(--accent); color:var(--accent);}
+  /* ---------- layout ---------- */
+  main{max-width:1180px; margin:0 auto; padding:26px 22px 10px;}
+  .eyebrow{font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:1.6px; color:var(--accent); margin-bottom:8px;}
+  section{margin-top:38px;}
+  .sec-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
+  .sec-head h2{font-size:1.28rem; font-weight:700; letter-spacing:-.3px;}
+  .sec-sub{font-size:.85rem; color:var(--muted); margin-bottom:16px; max-width:70ch;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow);}
+  .pad{padding:20px;}
+  .badge{display:inline-block; font-size:.64rem; font-weight:700; padding:3px 10px; border-radius:999px;
+    text-transform:uppercase; letter-spacing:.6px; vertical-align:middle;}
+  .badge.live{background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0;}
+  .badge.verified{background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;}
+  .badge.model{background:#FFFBEB; color:#B45309; border:1px solid #FDE68A;}
+  .count-badge{font-size:.72rem; font-weight:700; color:var(--accent); background:var(--accent-soft);
+    border-radius:999px; padding:3px 11px;}
+  .lvl{font-weight:700; padding:4px 13px; border-radius:999px; color:#fff; font-size:.74rem; text-transform:capitalize; white-space:nowrap;}
+  .lvl.low{background:var(--low);} .lvl.moderate{background:var(--moderate);}
+  .lvl.high{background:var(--high);} .lvl.critical{background:var(--critical);} .lvl.unknown{background:var(--faint);}
+  /* ---------- KPI strip ---------- */
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px;}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:18px 20px;
+    box-shadow:var(--shadow); position:relative; overflow:hidden; transition:transform .15s;}
+  .kpi:hover{transform:translateY(-2px);}
+  .kpi::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--accent); opacity:.85;}
+  .kpi.ok::before{background:var(--low);} .kpi.warn::before{background:var(--moderate);}
+  .kpi.bad::before{background:var(--high);} .kpi.crit::before{background:var(--critical);}
+  .kpi .lbl{font-size:.66rem; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:8px;}
+  .kpi .num{font-size:2rem; font-weight:800; letter-spacing:-.5px; line-height:1;}
+  .kpi .num small{font-size:.8rem; font-weight:500; color:var(--faint);}
+  .kpi .detail{font-size:.78rem; color:var(--muted); margin-top:8px; line-height:1.5;}
   #topAlert{margin-top:14px; display:none;}
   #topAlert.show{display:block;}
-  .top-alert-card{background:#fff; border-radius:14px; padding:14px 18px; color:var(--ink);
-    border-left:8px solid var(--warning); box-shadow:0 6px 22px rgba(40,10,90,.25);}
-  .top-alert-card.emergency{border-left-color:var(--critical); animation:pulse 2s infinite;}
-  .top-alert-card.warning{border-left-color:var(--warning);} .top-alert-card.watch{border-left-color:var(--moderate);}
+  .top-alert-card{background:var(--card); border:1px solid var(--line); border-left:4px solid var(--moderate);
+    border-radius:12px; padding:15px 20px; box-shadow:var(--shadow);}
+  .top-alert-card.emergency{border-left-color:var(--critical);}
+  .top-alert-card.warning{border-left-color:var(--high);}
+  .top-alert-card.watch{border-left-color:var(--moderate);}
   .top-alert-card.advisory{border-left-color:var(--low);}
-  .top-alert-card h4{font-size:1rem; margin-bottom:4px;}
-  /* ---------- layout ---------- */
-  main{max-width:1280px; margin:0 auto; padding:20px;}
-  section{margin-top:26px;}
-  section>h2{font-size:1.15rem; margin-bottom:4px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
-  section .sec-sub{font-size:.82rem; color:var(--muted); margin-bottom:12px;}
-  .count-badge{background:var(--violet); color:#fff; font-size:.72rem; font-weight:700; border-radius:999px; padding:2px 10px;}
-  .card{background:var(--card); border-radius:14px; padding:16px; box-shadow:var(--shadow); border:1px solid var(--line);}
-  .badge{display:inline-block; font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:999px;
-    text-transform:uppercase; letter-spacing:.5px; vertical-align:middle;}
-  .badge.live{background:#dcfce7; color:#166534;} .badge.verified{background:#dbeafe; color:#1e40af;}
-  .badge.model{background:#fef3c7; color:#92400e;} .badge.sample{background:#e7e5e4; color:#57534e;}
-  .lvl{font-weight:700; padding:3px 12px; border-radius:999px; color:#fff; font-size:.78rem; text-transform:capitalize; white-space:nowrap;}
-  .lvl.low{background:var(--low);} .lvl.moderate{background:var(--moderate);}
-  .lvl.high{background:var(--high);} .lvl.critical{background:var(--critical);} .lvl.unknown{background:#a8a29e;}
+  .top-alert-card h4{font-size:.98rem; margin-bottom:5px; letter-spacing:-.2px;}
+  .top-alert-card .meta{font-size:.78rem; color:var(--muted);}
   /* ---------- map ---------- */
-  #map{height:520px; border-radius:16px; border:1px solid var(--line); box-shadow:var(--shadow); z-index:1;}
-  .layer-chips{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 12px;}
-  .chip{background:var(--card); border:1px solid #e9dfc9; border-radius:999px; padding:6px 14px;
-    cursor:pointer; font-size:.82rem; display:flex; align-items:center; gap:6px; box-shadow:var(--shadow);}
-  .chip .dot{width:10px; height:10px; border-radius:50%;}
-  .chip.off{opacity:.45;}
-  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:.78rem; margin-top:8px; color:var(--muted);}
+  .map-card{overflow:hidden;}
+  .map-card .map-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:16px 20px 12px;}
+  .map-card .map-head h3{font-size:1rem; font-weight:700;}
+  #map{height:480px; z-index:1;}
+  .layer-chips{display:flex; gap:8px; flex-wrap:wrap; padding:12px 20px 16px;}
+  .chip{background:#fff; border:1px solid var(--line); border-radius:999px; padding:7px 14px; cursor:pointer;
+    font-size:.78rem; font-weight:600; display:flex; align-items:center; gap:7px; transition:all .15s; color:var(--ink);}
+  .chip:hover{border-color:var(--accent);}
+  .chip .dot{width:9px; height:9px; border-radius:50%;}
+  .chip.off{opacity:.4;}
   /* ---------- timeline ---------- */
-  .timeline{position:relative; margin-left:8px; padding-left:26px;}
-  .timeline::before{content:''; position:absolute; left:8px; top:6px; bottom:6px; width:2px; background:#e9dfc9;}
-  .tl-item{position:relative; padding:10px 0 10px 6px;}
-  .tl-item::before{content:''; position:absolute; left:-24px; top:16px; width:12px; height:12px; border-radius:50%;
-    background:var(--muted); border:2px solid #fff; box-shadow:0 0 0 2px #e9dfc9;}
+  .timeline{position:relative; padding:6px 6px 6px 26px;}
+  .timeline::before{content:''; position:absolute; left:10px; top:12px; bottom:12px; width:2px; background:var(--line); border-radius:2px;}
+  .tl-item{position:relative; padding:9px 0;}
+  .tl-item::before{content:''; position:absolute; left:-21px; top:15px; width:10px; height:10px; border-radius:50%;
+    background:var(--faint); border:2px solid #fff; box-shadow:0 0 0 2px var(--line);}
   .tl-item.sev-emergency::before{background:var(--critical);} .tl-item.sev-warning::before{background:var(--high);}
   .tl-item.sev-watch::before{background:var(--moderate);} .tl-item.sev-advisory::before{background:var(--low);}
-  .tl-item.quake::before{background:#7c3aed;} .tl-item.river::before{background:#0284c7;}
-  .tl-card{background:var(--card); border-radius:12px; padding:10px 14px; box-shadow:var(--shadow); border:1px solid var(--line); font-size:.88rem;}
-  .tl-card .tl-time{font-size:.72rem; color:var(--muted);}
-  .tl-card b.mag{font-size:1.05rem; color:var(--violet-deep);}
-  /* ---------- tables & bars ---------- */
-  table{width:100%; border-collapse:collapse; background:var(--card); border-radius:14px; overflow:hidden;
-    box-shadow:var(--shadow); font-size:.9rem;}
-  th,td{padding:10px 12px; text-align:left; border-bottom:1px solid #f3ecdd; vertical-align:middle;}
-  th{background:#f6efe0; font-size:.72rem; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);}
+  .tl-item.quake::before{background:var(--accent);} .tl-item.river::before{background:#0284C7;}
+  .tl-card{font-size:.87rem; line-height:1.55;}
+  .tl-card .tl-time{font-size:.72rem; color:var(--faint);}
+  .tl-card b.mag{font-size:1.02rem; color:var(--accent-ink, #4C1D95);}
+  .tl-card a{color:var(--accent); text-decoration:none; font-weight:600;}
+  /* ---------- tables ---------- */
+  table{width:100%; border-collapse:collapse; font-size:.88rem;}
+  th,td{padding:12px 14px; text-align:left; border-bottom:1px solid #F3EEDF; vertical-align:middle;}
+  th{font-size:.66rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--faint); background:#FCFAF4;}
+  tbody tr:hover{background:#FDFBF5;}
   tr:last-child td{border-bottom:none;}
-  .rainbar{height:8px; border-radius:99px; background:#f3ecdd; margin-top:5px; min-width:70px;}
-  .rainbar>div{height:8px; border-radius:99px; background:linear-gradient(90deg,#38bdf8,#0284c7);}
-  .levelbar{position:relative; height:10px; border-radius:99px; background:#f3ecdd; min-width:110px; margin-top:4px;}
-  .levelbar .fill{position:absolute; left:0; top:0; bottom:0; border-radius:99px; background:#38bdf8;}
-  .levelbar .mark{position:absolute; top:-3px; bottom:-3px; width:2px; background:#94a3b8;}
+  .table-card{overflow:hidden;}
+  .table-scroll{overflow-x:auto; max-height:520px; overflow-y:auto;}
+  .table-scroll thead th{position:sticky; top:0; z-index:2;}
+  .rainbar{height:6px; border-radius:99px; background:#F1EAD9; margin-top:6px; min-width:80px; max-width:150px;}
+  .rainbar>div{height:6px; border-radius:99px; background:linear-gradient(90deg,#7DD3FC,#0284C7);}
+  .levelbar{position:relative; height:8px; border-radius:99px; background:#F1EAD9; min-width:120px; max-width:200px; margin-top:6px;}
+  .levelbar .fill{position:absolute; left:0; top:0; bottom:0; border-radius:99px; background:#38BDF8;}
+  .levelbar .mark{position:absolute; top:-3px; bottom:-3px; width:2px; background:#A8A29E; border-radius:2px;}
   .levelbar .mark.danger{background:var(--critical);}
-  .pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
-  .city-pill{background:var(--card); border:1px solid #e9dfc9; border-radius:999px; padding:6px 14px;
-    cursor:pointer; font-size:.85rem; box-shadow:var(--shadow);}
-  .city-pill.active{background:var(--violet); color:#fff; border-color:var(--violet);}
-  /* ---------- grids ---------- */
-  .grid{display:grid; gap:16px;}
-  .cards4{grid-template-columns:repeat(auto-fit,minmax(230px,1fr));}
-  .glof-card{border-left:6px solid var(--moderate);}
-  .glof-card.st-warning{border-left-color:var(--high);} .glof-card.st-watch{border-left-color:var(--moderate);}
-  .forecast-day{display:flex; justify-content:space-between; padding:9px 4px; border-bottom:1px dashed #eee2c9; font-size:.9rem;}
+  .pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .city-pill{background:#fff; border:1px solid var(--line); border-radius:999px; padding:8px 16px;
+    cursor:pointer; font-size:.8rem; font-weight:600; transition:all .15s;}
+  .city-pill:hover{border-color:var(--accent);}
+  .city-pill.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+  select#districtSelect{font-size:.9rem; padding:9px 14px; border-radius:12px; border:1px solid var(--line);
+    background:#fff; max-width:100%; font-weight:600;}
+  .forecast-day{display:flex; justify-content:space-between; gap:10px; padding:11px 4px; border-bottom:1px solid #F3EEDF; font-size:.88rem;}
   .forecast-day:last-child{border-bottom:none;}
-  .guide-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px;}
-  .guide h4{margin-bottom:8px; font-size:1rem;}
-  .guide ol{margin-left:18px; font-size:.88rem; display:grid; gap:6px;}
-  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
-  footer{margin:28px 0 10px; font-size:.78rem; color:var(--muted); text-align:center; line-height:1.7;}
-  #loading{position:fixed; inset:0; background:rgba(250,246,237,.88); display:flex; align-items:center;
-    justify-content:center; font-size:1.1rem; color:var(--violet); z-index:999;}
-  select#districtSelect{font-size:1rem; padding:8px 12px; border-radius:10px; border:1px solid #e9dfc9; background:var(--card); max-width:100%;}
-  @media(max-width:760px){ #map{height:340px;} .kpi .num{font-size:1.6rem;} .two-col{grid-template-columns:1fr;} }
+  .forecast-day.today{background:#FCFAF4; border-radius:10px; padding:11px 10px; font-weight:700;}
+  /* ---------- grids ---------- */
+  .grid{display:grid; gap:14px;}
+  .cards4{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
+  .glof-card{padding:18px 20px; transition:transform .15s;}
+  .glof-card:hover{transform:translateY(-2px);}
+  .glof-card .gname{font-size:.95rem; font-weight:700; margin-bottom:8px; letter-spacing:-.2px;}
+  .glof-card .fact{font-size:.83rem; color:var(--muted); margin-top:10px; line-height:1.55;}
+  .glof-card .loc{font-size:.74rem; color:var(--faint); margin-top:8px;}
+  .guide-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px;}
+  .guide{padding:18px 20px;}
+  .guide h4{margin-bottom:10px; font-size:.95rem;}
+  .guide ol{margin-left:18px; font-size:.84rem; display:grid; gap:7px; color:var(--muted);}
+  .guide ol li::marker{color:var(--accent); font-weight:700;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .shelter-card{padding:14px 16px;}
+  .shelter-card h3{font-size:.85rem; margin-bottom:4px;}
+  .shelter-card .dist{font-size:.76rem; color:var(--faint);}
+  .src-row{display:flex; gap:12px; align-items:baseline; padding:9px 0; border-bottom:1px solid #F3EEDF; font-size:.86rem;}
+  .src-row:last-child{border-bottom:none;}
+  footer{margin:40px 0 14px; font-size:.76rem; color:var(--faint); text-align:center; line-height:1.8;}
+  #loading{position:fixed; inset:0; background:rgba(250,248,241,.9); display:flex; align-items:center;
+    justify-content:center; font-size:1rem; color:var(--accent); z-index:999; font-weight:600;}
+  .spinner{width:22px; height:22px; border:3px solid var(--accent-soft); border-top-color:var(--accent);
+    border-radius:50%; animation:spin 0.9s linear infinite; margin-right:10px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @media(max-width:760px){ #map{height:340px;} .kpi .num{font-size:1.55rem;} .two-col{grid-template-columns:1fr;}
+    main{padding:20px 14px 8px;} header{padding:10px 14px;} .brand .tag{display:none;} }
 </style>
 </head>
 <body>
-<div id="loading">⏳ <span data-i18n="loading">Loading live data…</span></div>
+<div id="loading"><span class="spinner"></span><span data-i18n="loading">Loading live data…</span></div>
 
 <header>
-  <div><h1>🛡️ Suraksha <span class="ne">· सुरक्षा</span></h1></div>
+  <div class="brand">
+    <span class="mark">🛡️</span>
+    <h1>Suraksha <span class="ne">· सुरक्षा</span></h1>
+    <span class="tag" data-i18n="tagline">Nepal Disaster Early Warning</span>
+  </div>
   <div class="hdr-right">
     <span id="threatPill" class="threat-pill">…</span>
     <span id="clock"></span>
@@ -133,102 +172,110 @@
   </div>
 </header>
 
-<div class="hero">
-  <div class="hero-inner">
-    <h2 data-i18n="situationNow">Nepal right now</h2>
-    <div class="hero-sub"><span data-i18n="situationSub">Live picture from DHM, NEMRC, USGS, GDACS and our risk model — updated minutes ago.</span></div>
+<main>
+  <section style="margin-top:8px;">
+    <div class="eyebrow" data-i18n="situationNow">Live overview</div>
     <div class="kpis" id="kpis"></div>
     <div id="topAlert"></div>
-  </div>
-</div>
-
-<main>
-  <section>
-    <h2>🗺️ <span data-i18n="liveMap">Live Hazard Map</span>
-      <span class="badge live">Live</span> <span class="badge verified">Verified</span> <span class="badge model">Model</span></h2>
-    <div class="layer-chips" id="layerChips"></div>
-    <div id="map"></div>
   </section>
 
   <section>
-    <h2>📡 <span data-i18n="latestEvents">Latest events</span> <span class="count-badge" id="tlCount"></span></h2>
+    <div class="eyebrow" data-i18n="liveMap">Live hazard map</div>
+    <div class="card map-card">
+      <div class="map-head">
+        <h3><span data-i18n="mapTitle">Nepal — all hazards</span></h3>
+        <div><span class="badge live">Live</span> <span class="badge verified">Verified</span> <span class="badge model">Model</span></div>
+      </div>
+      <div id="map"></div>
+      <div class="layer-chips" id="layerChips"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow" data-i18n="latestEvents">Latest events</div>
+    <div class="sec-head"><h2 data-i18n="latestTitle">What happened recently</h2><span class="count-badge" id="tlCount"></span></div>
     <div class="sec-sub" data-i18n="latestSub">Alerts, earthquakes and river warnings in one live feed — newest first.</div>
-    <div class="timeline" id="timeline"></div>
+    <div class="card pad"><div class="timeline" id="timeline"></div></div>
   </section>
 
   <section>
-    <h2>📊 <span data-i18n="riskTable">District Risk Overview</span> <span class="badge model">Model</span>
-      <span class="count-badge" id="riskCount"></span></h2>
+    <div class="eyebrow" data-i18n="riskTable">District risk overview</div>
+    <div class="sec-head"><h2 data-i18n="riskTitle">Where is the risk building</h2><span class="count-badge" id="riskCount"></span> <span class="badge model">Model</span></div>
     <div class="sec-sub" data-i18n="riskSub">72-hour rainfall vs flood, landslide and seismic risk. Bars show forecast rain relative to the wettest district.</div>
     <div class="pill-row">
       <button class="city-pill active" id="fAttention" onclick="setRiskFilter('attention')" data-i18n="showAttention">Needs attention only</button>
       <button class="city-pill" id="fAll" onclick="setRiskFilter('all')" data-i18n="showAll">Show all 77</button>
     </div>
-    <div class="card" style="padding:0;overflow-x:auto;max-height:520px;overflow-y:auto;">
-      <table><thead style="position:sticky;top:0;background:var(--card);z-index:1;"><tr>
+    <div class="card table-card"><div class="table-scroll">
+      <table><thead><tr>
         <th data-i18n="thCity">District</th><th data-i18n="thRain">Rain 72h</th>
         <th data-i18n="thFlood">Flood</th><th data-i18n="thSlide">Landslide</th>
         <th data-i18n="thSeis">Seismic</th><th data-i18n="thGauge">River gauge</th><th data-i18n="thOverall">Overall</th>
       </tr></thead><tbody id="riskBody"></tbody></table>
-    </div>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:6px;" data-i18n="modelNote">
+    </div></div>
+    <div style="font-size:.76rem;color:var(--faint);margin-top:8px;" data-i18n="modelNote">
       Transparent heuristic: 72h forecast rainfall thresholds + DHM gauge overrides. Not an official DHM/NDRRMA forecast.
     </div>
   </section>
 
   <section>
-    <h2>🏔️ <span data-i18n="glof">GLOF Watch — Glacial Lakes</span> <span class="badge verified">Verified</span></h2>
-    <div class="card" id="glofSummary" style="margin-bottom:12px;"></div>
+    <div class="eyebrow" data-i18n="glof">GLOF watch</div>
+    <div class="sec-head"><h2 data-i18n="glofTitle">Glacial lakes under watch</h2><span class="badge verified">Verified</span></div>
+    <div class="card pad" id="glofSummary" style="margin-bottom:14px; font-size:.88rem;"></div>
     <div class="grid cards4" id="glofGrid"></div>
   </section>
 
   <section>
-    <h2>🌊 <span data-i18n="rivers">Live River Gauges (DHM)</span> <span class="badge live">Live</span>
-      <span class="count-badge" id="riverCount"></span></h2>
+    <div class="eyebrow" data-i18n="rivers">River gauges</div>
+    <div class="sec-head"><h2 data-i18n="riverTitle">Live water levels — DHM</h2><span class="count-badge" id="riverCount"></span> <span class="badge live">Live</span></div>
     <div class="sec-sub" data-i18n="riverSub">Bars show the current level against each station's warning and danger marks.</div>
-    <div class="card" style="padding:0;overflow-x:auto;max-height:460px;overflow-y:auto;">
-      <table><thead style="position:sticky;top:0;background:var(--card);z-index:1;"><tr>
+    <div class="card table-card"><div class="table-scroll" style="max-height:460px;">
+      <table><thead><tr>
         <th data-i18n="thStation">Station</th><th data-i18n="thLevel">Water level</th>
         <th data-i18n="thStatus">Status</th><th data-i18n="thTrend">Trend</th><th data-i18n="thRiver">River/Basin</th>
       </tr></thead><tbody id="riverBody"></tbody></table>
-    </div>
-    <div id="riverNote" style="font-size:.78rem;color:var(--muted);margin-top:6px;"></div>
+    </div></div>
+    <div id="riverNote" style="font-size:.76rem;color:var(--faint);margin-top:8px;"></div>
   </section>
 
   <section>
-    <h2>🌧️ <span data-i18n="forecast">7-Day Weather Forecast</span> — <span id="forecastDistrict"></span> <span class="badge live">Live</span></h2>
-    <div style="margin-bottom:10px;"><select id="districtSelect" onchange="selectCity(this.value)"></select></div>
-    <div class="card"><div id="forecastBody"></div>
-      <div style="font-size:.75rem;color:var(--muted);margin-top:8px;" data-i18n="srcMeteo">Source: Open-Meteo (free, no key)</div>
+    <div class="eyebrow" data-i18n="forecast">Forecast</div>
+    <div class="sec-head"><h2><span data-i18n="forecastTitle">7-day weather</span> — <span id="forecastDistrict"></span></h2><span class="badge live">Live</span></div>
+    <div style="margin-bottom:12px;"><select id="districtSelect" onchange="selectCity(this.value)"></select></div>
+    <div class="card pad"><div id="forecastBody"></div>
+      <div style="font-size:.74rem;color:var(--faint);margin-top:10px;" data-i18n="srcMeteo">Source: Open-Meteo (free, no key)</div>
     </div>
   </section>
 
   <div class="two-col">
     <section>
-      <h2>⛺ <span data-i18n="shelters">Emergency Shelters</span> <span class="badge verified">Verified</span></h2>
+      <div class="eyebrow" data-i18n="shelters">Emergency shelters</div>
+      <div class="sec-head"><h2 data-i18n="shelterTitle">Where to go</h2><span class="badge verified">Verified</span></div>
       <div class="sec-sub" data-i18n="shelterNote">83 open spaces designated by IOM + Ministry of Home Affairs (2013), Nepal Gazette. Coordinates approximate.</div>
-      <div class="grid cards4" id="shelterGrid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));"></div>
+      <div class="grid" id="shelterGrid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));"></div>
     </section>
     <section>
-      <h2>📋 <span data-i18n="guides">What To Do — Safety Guides</span></h2>
+      <div class="eyebrow" data-i18n="guides">Safety guides</div>
+      <div class="sec-head"><h2 data-i18n="guideTitle">What to do</h2></div>
       <div class="sec-sub" data-i18n="guidesSub">If an alert names your area, act on the matching guide immediately.</div>
-      <div class="guide-grid" id="guideGrid" style="grid-template-columns:1fr;"></div>
+      <div class="grid" id="guideGrid" style="grid-template-columns:1fr;"></div>
     </section>
   </div>
 
   <section>
-    <h2>🔌 <span data-i18n="sources">Data Sources</span></h2>
-    <div class="card" style="font-size:.88rem;line-height:2;">
-      <div>🛰️ <b>USGS Earthquake Hazards Program</b> — <span class="badge live">Live</span> <span data-i18n="srcUsgs">real-time global earthquake feed, no key needed</span></div>
-      <div>🌦️ <b>Open-Meteo / MET Norway</b> — <span class="badge live">Live</span> <span data-i18n="srcMeteo2">current + 7-day forecast, no key needed · MET Norway fallback when Open-Meteo rate-limits</span></div>
-      <div>🇳🇵 <b>NEMRC Nepal</b> — <span class="badge live">Live</span> <span data-i18n="srcNemrc">National Earthquake Monitoring & Research Centre catalog</span></div>
-      <div>🏔️ <b>ICIMOD + UNDP + GoN (2026)</b> — <span class="badge verified">Verified</span> <span data-i18n="srcIcimod">6 priority glacial lakes with real-time watch registry</span></div>
-      <div>⛺ <b>IOM + MoHA Nepal</b> — <span class="badge verified">Verified</span> <span data-i18n="srcIom">10 verified open spaces of 83 designated (2013, Nepal Gazette)</span></div>
-      <div>🌊 <b>DHM Nepal (hydrology.gov.np)</b> — <span class="badge live">Live</span> <span data-i18n="srcDhm">real-time river gauge feed</span></div>
-      <div>🚨 <b>GDACS</b> — <span class="badge live">Live</span> <span data-i18n="srcGdacs">global disaster alerts, Nepal incidents</span></div>
-      <div>🛰️ <b>Copernicus Sentinel-2</b> — <span class="badge live">Live</span> <span data-i18n="srcS2">latest clear satellite view per glacial lake</span></div>
-      <div>🏛️ <b>BIPAD / NDRRMA Nepal</b> — <span class="badge model">Planned</span> <span data-i18n="srcBipad">unreachable from our network — direct DHM + GDACS used instead</span></div>
-      <div style="margin-top:8px;font-size:.78rem;color:var(--muted);"><span data-i18n="srcHealth">Upstream health (probed from this server)</span>: <span id="srcHealth"></span></div>
+    <div class="eyebrow" data-i18n="sources">Data sources</div>
+    <div class="sec-head"><h2 data-i18n="sourceTitle">Where the data comes from</h2></div>
+    <div class="card pad" style="font-size:.86rem;">
+      <div class="src-row"><span>🛰️</span><div><b>USGS Earthquake Hazards Program</b> — <span class="badge live">Live</span> <span style="color:var(--muted)" data-i18n="srcUsgs">real-time global earthquake feed, no key needed</span></div></div>
+      <div class="src-row"><span>🌦️</span><div><b>Open-Meteo / MET Norway</b> — <span class="badge live">Live</span> <span style="color:var(--muted)" data-i18n="srcMeteo2">current + 7-day forecast, no key needed</span></div></div>
+      <div class="src-row"><span>🇳🇵</span><div><b>NEMRC Nepal</b> — <span class="badge live">Live</span> <span style="color:var(--muted)" data-i18n="srcNemrc">National Earthquake Monitoring & Research Centre catalog</span></div></div>
+      <div class="src-row"><span>🏔️</span><div><b>ICIMOD + UNDP + GoN (2026)</b> — <span class="badge verified">Verified</span> <span style="color:var(--muted)" data-i18n="srcIcimod">6 priority glacial lakes, live watch registry</span></div></div>
+      <div class="src-row"><span>⛺</span><div><b>IOM + MoHA Nepal</b> — <span class="badge verified">Verified</span> <span style="color:var(--muted)" data-i18n="srcIom">10 verified open spaces of 83 designated (2013)</span></div></div>
+      <div class="src-row"><span>🌊</span><div><b>DHM Nepal</b> — <span class="badge live">Live</span> <span style="color:var(--muted)" data-i18n="srcDhm">real-time river gauge feed</span></div></div>
+      <div class="src-row"><span>🚨</span><div><b>GDACS</b> — <span class="badge live">Live</span> <span style="color:var(--muted)" data-i18n="srcGdacs">global disaster alerts, Nepal incidents</span></div></div>
+      <div class="src-row"><span>🛰️</span><div><b>Copernicus Sentinel-2</b> — <span class="badge live">Live</span> <span style="color:var(--muted)" data-i18n="srcS2">latest clear satellite view per glacial lake</span></div></div>
+      <div class="src-row"><span>🏛️</span><div><b>BIPAD / NDRRMA</b> — <span class="badge model">Planned</span> <span style="color:var(--muted)" data-i18n="srcBipad">unreachable from our network — DHM + GDACS used instead</span></div></div>
+      <div style="margin-top:10px;font-size:.76rem;color:var(--faint);"><span data-i18n="srcHealth">Upstream health (probed from this server)</span>: <span id="srcHealth"></span></div>
     </div>
   </section>
 
@@ -239,6 +286,7 @@
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+
 let LANG = 'en';
 const I18N = {
   en:{loading:"Loading live data…", situationNow:"Nepal right now",
@@ -269,7 +317,10 @@ const I18N = {
     threatNone:"All clear", threatAdvisory:"Advisory", threatWatch:"Watch", threatWarning:"Warning", threatEmergency:"Emergency",
     layers:"Layers", quakes:"Quakes", nemrcQuakes:"Nepal quakes", cityRisk:"City risk", lakes:"Lakes", sheltersL:"Shelters",
     justNow:"just now", agoMin:"min ago", agoHr:"hr ago", agoDay:"days ago",
-    steady:"steady", rising:"rising", falling:"falling", warnMark:"warn", dangerMark:"danger"},
+    steady:"steady", rising:"rising", falling:"falling", warnMark:"warn", dangerMark:"danger",
+    tagline:"Nepal Disaster Early Warning", mapTitle:"Nepal — all hazards", latestTitle:"What happened recently",
+    riskTitle:"Where is the risk building", glofTitle:"Glacial lakes under watch", riverTitle:"Live water levels — DHM",
+    forecastTitle:"7-day weather", shelterTitle:"Where to go", guideTitle:"What to do", sourceTitle:"Where the data comes from",},
   ne:{loading:"लाइभ डाटा लोड हुँदैछ…", situationNow:"अहिले नेपालमा",
     situationSub:"DHM, NEMRC, USGS, GDACS र हाम्रो जोखिम मोडेलबाट लाइभ चित्र — केही मिनेटअघि अद्यावधिक।",
     liveMap:"लाइभ जोखिम नक्सा", latestEvents:"पछिल्ला घटनाहरू",
@@ -298,7 +349,10 @@ const I18N = {
     threatNone:"सबै सामान्य", threatAdvisory:"सल्लाह", threatWatch:"निगरानी", threatWarning:"चेतावनी", threatEmergency:"आपतकाल",
     layers:"तहहरू", quakes:"भूकम्प", nemrcQuakes:"नेपाल भूकम्प", cityRisk:"शहर जोखिम", lakes:"ताल", sheltersL:"आश्रय",
     justNow:"भर्खरै", agoMin:"मिनेटअघि", agoHr:"घण्टाअघि", agoDay:"दिनअघि",
-    steady:"स्थिर", rising:"बढ्दो", falling:"घट्दो", warnMark:"चेतावनी", dangerMark:"खतरा"}
+    steady:"स्थिर", rising:"बढ्दो", falling:"घट्दो", warnMark:"चेतावनी", dangerMark:"खतरा",
+    tagline:"नेपाल विपद् पूर्वसूचना", mapTitle:"नेपाल — सबै जोखिम", latestTitle:"भर्खर के भयो",
+    riskTitle:"जोखिम कहाँ बढ्दैछ", glofTitle:"निगरानीमा रहेका हिमताल", riverTitle:"लाइभ पानीको सतह — DHM",
+    forecastTitle:"७-दिने मौसम", shelterTitle:"कहाँ जाने", guideTitle:"के गर्ने", sourceTitle:"डाटा कहाँबाट आउँछ",}
 };
 const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
 const cityName = c => LANG==='ne' ? c.name_ne : c.name_en;
@@ -325,6 +379,7 @@ function ago(iso){
 }
 </script>
 <script>
+
 /* ---------- map ---------- */
 let map, LAYERS = {};
 const LAYER_DEFS = [
@@ -406,18 +461,14 @@ function renderHero(){
   const needAtt = (DATA.risk||[]).filter(r=>['moderate','high','critical'].includes(r.overall)).length;
   const riversUp = ((DATA.rivers||{}).stations||[]).filter(s=>s.level==='danger'||s.level==='warning').length;
   document.getElementById('kpis').innerHTML = `
-    <div class="kpi ${kpiCls(lvl)}"><span class="big-emoji">🚨</span>
-      <div class="lbl">${t('activeAlerts')}</div><div class="num">${o.active_alerts||0}</div>
+    <div class="kpi ${kpiCls(lvl)}"><div class="lbl">${t('activeAlerts')}</div><div class="num">${o.active_alerts||0}</div>
       <div class="detail">⚠️ ${sev.warning||0} · 🟡 ${sev.watch||0} · 🟢 ${sev.advisory||0}</div></div>
-    <div class="kpi"><span class="big-emoji">🌍</span>
-      <div class="lbl">${t('strongestQuake')}</div>
+    <div class="kpi"><div class="lbl">${t('strongestQuake')}</div>
       <div class="num">${strongest?('M'+strongest.mag):'—'}</div>
       <div class="detail">${strongest?esc(strongest.place||'')+' · '+ago(strongest.time):''}</div></div>
-    <div class="kpi ${needAtt?'warn':'ok'}"><span class="big-emoji">📊</span>
-      <div class="lbl">${t('districtsWatch')}</div><div class="num">${needAtt} <small>/ ${(DATA.risk||[]).length||77}</small></div>
+    <div class="kpi ${needAtt?'warn':'ok'}"><div class="lbl">${t('districtsWatch')}</div><div class="num">${needAtt} <small>/ ${(DATA.risk||[]).length||77}</small></div>
       <div class="detail">${t('riskTable')}</div></div>
-    <div class="kpi ${riversUp?'bad':'ok'}"><span class="big-emoji">🌊</span>
-      <div class="lbl">${t('riversHigh')}</div><div class="num">${riversUp} <small>/ ${((DATA.rivers||{}).station_count)||'—'}</small></div>
+    <div class="kpi ${riversUp?'bad':'ok'}"><div class="lbl">${t('riversHigh')}</div><div class="num">${riversUp} <small>/ ${((DATA.rivers||{}).station_count)||'—'}</small></div>
       <div class="detail">DHM · ${t('srcDhmLine')}</div></div>`;
   const top = document.getElementById('topAlert');
   const a = DATA.alerts[0];
@@ -485,14 +536,13 @@ function renderGlof(){
     `<b>6</b> ${LANG==='ne'?'प्राथमिकता हिमताल — वास्तविक-समय निगरानी रजिस्ट्री':'priority glacial lakes — live watch registry'} ·
      <span style="color:var(--muted)">${t('source')}: ICIMOD + UNDP + ${LANG==='ne'?'नेपाल सरकार (२०२६)':'Government of Nepal (2026)'}</span>`;
   document.getElementById('glofGrid').innerHTML = (DATA.glof||[]).map(l=>`
-    <div class="card glof-card st-${l.level||'watch'}">
-      <h3 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;">
-        🏔️ ${esc(LANG==='ne'?l.name_ne:l.name_en)} <span class="badge verified">Verified</span></h3>
-      <div><span class="lvl ${(l.level==='warning')?'high':'moderate'}">${esc(LANG==='ne'?l.status_ne:l.status_en)}</span></div>
-      <div style="font-size:.85rem;margin-top:8px;">${esc(LANG==='ne'?l.fact_ne:l.fact_en)}</div>
-      <div style="font-size:.78rem;color:var(--muted);margin-top:6px;">📍 ${esc(LANG==='ne'?l.district_ne:l.district_en)} · ${esc(l.basin_en)}</div>
-      <div style="font-size:.78rem;color:var(--muted);margin-top:2px;">${t('downstream')}: ${esc(l.downstream_en)}</div>
-      <div style="font-size:.78rem;color:var(--muted);margin-top:2px;">🛰️ ${satLine(l.id)}</div></div>`).join('');
+    <div class="card glof-card">
+      <div class="gname">${esc(LANG==='ne'?l.name_ne:l.name_en)}</div>
+      <div><span class="lvl ${(l.level==='warning')?'high':'moderate'}">${esc(LANG==='ne'?l.status_ne:l.status_en)}</span>
+        <span class="badge verified" style="margin-left:6px;">Verified</span></div>
+      <div class="fact">${esc(LANG==='ne'?l.fact_ne:l.fact_en)}</div>
+      <div class="loc">📍 ${esc(LANG==='ne'?l.district_ne:l.district_en)} · ${esc(l.basin_en)} · ${t('downstream')}: ${esc(l.downstream_en)}</div>
+      <div class="loc">🛰️ ${satLine(l.id)}</div></div>`).join('');
 }
 function satLine(id){
   const sc = (DATA.scenes||[]).find(x=>x.lake_id===id);
@@ -571,8 +621,8 @@ function renderForecast(){
 /* ---------- shelters / guides / sources ---------- */
 function renderShelters(){
   document.getElementById('shelterGrid').innerHTML = (DATA.shelters||[]).map(s=>`
-    <div class="card"><h3 style="font-size:.85rem;margin-bottom:6px;">⛺ ${esc(LANG==='ne'?s.name_ne:s.name_en)}</h3>
-    <div style="font-size:.82rem;color:var(--muted);">${esc(LANG==='ne'?s.district_ne:s.district_en)}</div></div>`).join('');
+    <div class="card shelter-card"><h3>⛺ ${esc(LANG==='ne'?s.name_ne:s.name_en)}</h3>
+    <div class="dist">${esc(LANG==='ne'?s.district_ne:s.district_en)}</div></div>`).join('');
 }
 const GUIDES = {
   earthquake:{en:'🌍 Earthquake',ne:'🌍 भूकम्प',items_en:['Drop, cover and hold on','Move to open ground after shaking','Expect aftershocks — check gas/power'],
