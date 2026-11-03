@@ -1,0 +1,11 @@
+# Temporary diagnostic workflow — will be removed after verification.
+name: shipit-ping
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo pong
