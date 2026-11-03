@@ -45,3 +45,44 @@ jobs:
           exit-code: '1'
       - name: Push image to GHCR
         run: docker push ${{ env.IMAGE }}:${{ github.sha }}
+
+  bump-shipit:
+    # Closes the GitOps loop: writes the new :<sha> tag into the
+    # shipit-platform repo's suraksha manifests so ArgoCD syncs them.
+    # Needs repo secret SHIPIT_BUMP_PAT (PAT with repo scope on
+    # Samir-Khadka/shipit-platform). Without it this job is skipped and
+    # Samir runs scripts/bump-service-image.sh suraksha <sha> by hand.
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout shipit-platform
+        uses: actions/checkout@v4
+        with:
+          repository: Samir-Khadka/shipit-platform
+          token: ${{ secrets.SHIPIT_BUMP_PAT }}
+      - name: Bump suraksha image tag to new sha
+        run: |
+          set -e
+          SHA="${{ github.sha }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2; do
+            git fetch origin main
+            git reset --hard origin/main
+            sed -i -E "s#(image: ghcr.io/samir-khadka/suraksha:)[^[:space:]]+#\1${SHA}#" k8s/services/suraksha/*.yaml
+            git add k8s/services/suraksha/
+            if git diff --cached --quiet; then
+              echo "image tag already at ${SHA}; nothing to do"
+              exit 0
+            fi
+            git commit -m "[service-bump] suraksha -> ${SHA}"
+            if git push origin main; then
+              echo "tag bump pushed"
+              exit 0
+            fi
+            echo "push raced (attempt ${attempt}/2), retrying..."
+            sleep 10
+          done
+          echo "failed to push tag bump after 2 attempts" >&2
+          exit 1
