@@ -49,24 +49,31 @@ jobs:
   bump-shipit:
     # Closes the GitOps loop: writes the new :<sha> tag into the
     # shipit-platform repo's suraksha manifests so ArgoCD syncs them.
-    # Needs repo secret SHIPIT_BUMP_PAT (PAT with repo scope on
-    # Samir-Khadka/shipit-platform). Without it this job is skipped and
-    # Samir runs scripts/bump-service-image.sh suraksha <sha> by hand.
+    # Gating is done INSIDE the shell script (env: PAT), not in a job-level
+    # `if:` — a job-level `if:` referencing secrets.SHIPIT_BUMP_PAT killed
+    # the entire workflow run at queue time (no jobs created).
+    # Without the PAT this job exits 0 with instructions; Samir then runs
+    # scripts/bump-service-image.sh suraksha <sha> in shipit-platform by hand.
     needs: build
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout shipit-platform
-        uses: actions/checkout@v4
-        with:
-          repository: Samir-Khadka/shipit-platform
-          token: ${{ secrets.SHIPIT_BUMP_PAT }}
-      - name: Bump suraksha image tag to new sha
+      - name: Bump suraksha image tag in shipit-platform
+        env:
+          PAT: ${{ secrets.SHIPIT_BUMP_PAT }}
+          SHA: ${{ github.sha }}
         run: |
           set -e
-          SHA="${{ github.sha }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -z "$PAT" ]; then
+            echo "SHIPIT_BUMP_PAT is not set — skipping automatic bump."
+            echo "Manual step: in the shipit-platform repo run"
+            echo "  scripts/bump-service-image.sh suraksha ${SHA}"
+            exit 0
+          fi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          rm -rf shipit-platform
+          git clone "https://x-access-token:${PAT}@github.com/Samir-Khadka/shipit-platform.git"
+          cd shipit-platform
           for attempt in 1 2; do
             git fetch origin main
             git reset --hard origin/main
