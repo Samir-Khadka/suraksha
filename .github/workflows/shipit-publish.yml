@@ -1,0 +1,88 @@
+# Builds + scans the Suraksha image and publishes :<sha> to GHCR.
+# On main pushes, a follow-up job bumps the sha tag into
+# Samir-Khadka/shipit-platform k8s/services/suraksha/*.yaml so ArgoCD syncs it
+# (Flagger canary then rolls it out progressively).
+name: shipit-publish
+
+on:
+  push:
+    branches: [main]
+
+env:
+  IMAGE: ghcr.io/samir-khadka/suraksha
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image (scan before push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+      - name: Scan image with Trivy
+        # Gate: fail on HIGH/CRITICAL vulnerabilities that have a fix
+        # available. ignore-unfixed keeps the gate actionable — it blocks
+        # on what we can fix, not on unfixable base-image noise.
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Push image to GHCR
+        run: docker push ${{ env.IMAGE }}:${{ github.sha }}
+
+  bump-shipit:
+    # Closes the GitOps loop: writes the new :<sha> tag into the
+    # shipit-platform repo's suraksha manifests so ArgoCD syncs them.
+    # Needs repo secret SHIPIT_BUMP_PAT (PAT with repo scope on
+    # Samir-Khadka/shipit-platform). Without it this job is skipped and
+    # Samir runs scripts/bump-service-image.sh suraksha <sha> by hand.
+    needs: build
+    if: ${{ secrets.SHIPIT_BUMP_PAT != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout shipit-platform
+        uses: actions/checkout@v4
+        with:
+          repository: Samir-Khadka/shipit-platform
+          token: ${{ secrets.SHIPIT_BUMP_PAT }}
+      - name: Bump suraksha image tag to new sha
+        run: |
+          set -e
+          SHA="${{ github.sha }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2; do
+            git fetch origin main
+            git reset --hard origin/main
+            sed -i -E "s#(image: ghcr.io/samir-khadka/suraksha:)[^[:space:]]+#\1${SHA}#" k8s/services/suraksha/*.yaml
+            git add k8s/services/suraksha/
+            if git diff --cached --quiet; then
+              echo "image tag already at ${SHA}; nothing to do"
+              exit 0
+            fi
+            git commit -m "[service-bump] suraksha -> ${SHA}"
+            if git push origin main; then
+              echo "tag bump pushed"
+              exit 0
+            fi
+            echo "push raced (attempt ${attempt}/2), retrying..."
+            sleep 10
+          done
+          echo "failed to push tag bump after 2 attempts" >&2
+          exit 1

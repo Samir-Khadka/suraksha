@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from prometheus_fastapi_instrumentator import Instrumentator
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -1114,6 +1115,7 @@ async def dispatch_broadcast(body: BroadcastIn):
 
 # ------------------------------------------------------------------- app ----
 app = FastAPI(title="Suraksha API", version="0.1.0")
+Instrumentator().instrument(app).expose(app)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
 
