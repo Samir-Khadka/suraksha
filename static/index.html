@@ -8,129 +8,163 @@
 <style>
   :root{
     --bg:#FAF6ED; --card:#ffffff; --ink:#2b2620; --muted:#8a8177;
-    --violet:#6d28d9; --gold:#b45309;
+    --violet:#6d28d9; --violet-deep:#4c1d95; --gold:#b45309;
     --low:#16a34a; --moderate:#ca8a04; --high:#ea580c; --critical:#dc2626;
-    --watch:#d97706; --warning:#ea580c; --emergency:#dc2626; --advisory:#16a34a;
+    --line:#f0e8d8; --shadow:0 2px 14px rgba(60,40,10,.08);
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   body{font-family:'Segoe UI',system-ui,'Noto Sans Devanagari',sans-serif; background:var(--bg); color:var(--ink);}
-  header{background:linear-gradient(135deg,#4c1d95,#6d28d9); color:#fff; padding:14px 20px;
-    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
-    box-shadow:0 2px 12px rgba(76,29,149,.25);}
-  header h1{font-size:1.35rem; letter-spacing:.3px;}
+  /* ---------- sticky header ---------- */
+  header{position:sticky; top:0; z-index:500; background:linear-gradient(135deg,#4c1d95,#6d28d9); color:#fff;
+    padding:10px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    box-shadow:0 2px 12px rgba(76,29,149,.3);}
+  header h1{font-size:1.25rem; letter-spacing:.3px;}
   header h1 .ne{font-weight:400; opacity:.92;}
-  header .sub{font-size:.8rem; opacity:.85;}
+  .hdr-right{display:flex; gap:10px; align-items:center;}
+  #clock{font-size:.85rem; opacity:.9;}
   .lang-toggle{background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); color:#fff;
     border-radius:999px; padding:6px 14px; cursor:pointer; font-size:.9rem;}
   .lang-toggle:hover{background:rgba(255,255,255,.28);}
-  #alertBanner{display:none; padding:12px 20px; font-weight:600; color:#fff;}
-  #alertBanner.show{display:block;}
-  #alertBanner.warning{background:var(--warning);} #alertBanner.watch{background:var(--watch);}
-  #alertBanner.emergency{background:var(--emergency); animation:pulse 1.6s infinite;}
-  #alertBanner.advisory{background:var(--advisory);}
-  @keyframes pulse{50%{filter:brightness(1.18);}}
-  main{max-width:1280px; margin:0 auto; padding:18px;}
-  .grid{display:grid; gap:16px;}
-  .cards4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));}
-  .card{background:var(--card); border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(60,40,10,.07);
-    border:1px solid #f0e8d8;}
-  .card h3{font-size:.82rem; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-bottom:8px;}
-  .stat{font-size:2rem; font-weight:700; color:var(--violet);}
-  .stat small{font-size:.85rem; color:var(--muted); font-weight:400;}
-  section{margin-top:22px;}
-  section>h2{font-size:1.12rem; margin-bottom:10px; display:flex; align-items:center; gap:8px;}
-  #map{height:440px; border-radius:14px; border:1px solid #f0e8d8; box-shadow:0 2px 10px rgba(60,40,10,.07);}
+  .threat-pill{font-size:.78rem; font-weight:700; padding:6px 14px; border-radius:999px;
+    background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.45); text-transform:uppercase; letter-spacing:.6px;}
+  .threat-pill.advisory{background:#16a34a;} .threat-pill.watch{background:#d97706;}
+  .threat-pill.warning{background:#ea580c;} .threat-pill.emergency{background:#dc2626; animation:pulse 1.6s infinite;}
+  @keyframes pulse{50%{filter:brightness(1.2);}}
+  /* ---------- hero : situation now ---------- */
+  .hero{background:linear-gradient(160deg,#5b21b6 0%,#7c3aed 60%,#8b5cf6 100%); color:#fff; padding:26px 20px 30px;}
+  .hero-inner{max-width:1280px; margin:0 auto;}
+  .hero h2{font-size:1.05rem; font-weight:600; opacity:.95; margin-bottom:4px;}
+  .hero .hero-sub{font-size:.82rem; opacity:.8; margin-bottom:16px;}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px;}
+  .kpi{background:#fff; color:var(--ink); border-radius:16px; padding:16px 18px; box-shadow:0 6px 22px rgba(40,10,90,.25);
+    border-top:5px solid var(--violet); position:relative; overflow:hidden;}
+  .kpi.ok{border-top-color:var(--low);} .kpi.warn{border-top-color:var(--moderate);}
+  .kpi.bad{border-top-color:var(--high);} .kpi.crit{border-top-color:var(--critical);}
+  .kpi .lbl{font-size:.72rem; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin-bottom:6px;}
+  .kpi .num{font-size:2.1rem; font-weight:800; line-height:1.05;}
+  .kpi .num small{font-size:.85rem; font-weight:400; color:var(--muted);}
+  .kpi .detail{font-size:.8rem; color:var(--muted); margin-top:6px; line-height:1.45;}
+  .kpi .big-emoji{position:absolute; right:10px; top:8px; font-size:1.6rem; opacity:.28;}
+  #topAlert{margin-top:14px; display:none;}
+  #topAlert.show{display:block;}
+  .top-alert-card{background:#fff; border-radius:14px; padding:14px 18px; color:var(--ink);
+    border-left:8px solid var(--warning); box-shadow:0 6px 22px rgba(40,10,90,.25);}
+  .top-alert-card.emergency{border-left-color:var(--critical); animation:pulse 2s infinite;}
+  .top-alert-card.warning{border-left-color:var(--warning);} .top-alert-card.watch{border-left-color:var(--moderate);}
+  .top-alert-card.advisory{border-left-color:var(--low);}
+  .top-alert-card h4{font-size:1rem; margin-bottom:4px;}
+  /* ---------- layout ---------- */
+  main{max-width:1280px; margin:0 auto; padding:20px;}
+  section{margin-top:26px;}
+  section>h2{font-size:1.15rem; margin-bottom:4px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  section .sec-sub{font-size:.82rem; color:var(--muted); margin-bottom:12px;}
+  .count-badge{background:var(--violet); color:#fff; font-size:.72rem; font-weight:700; border-radius:999px; padding:2px 10px;}
+  .card{background:var(--card); border-radius:14px; padding:16px; box-shadow:var(--shadow); border:1px solid var(--line);}
   .badge{display:inline-block; font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:999px;
     text-transform:uppercase; letter-spacing:.5px; vertical-align:middle;}
-  .badge.live{background:#dcfce7; color:#166534;}
-  .badge.verified{background:#dbeafe; color:#1e40af;}
-  .badge.model{background:#fef3c7; color:#92400e;}
-  .badge.sample{background:#e7e5e4; color:#57534e;}
-  .lvl{font-weight:700; padding:3px 12px; border-radius:999px; color:#fff; font-size:.78rem; text-transform:capitalize;}
+  .badge.live{background:#dcfce7; color:#166534;} .badge.verified{background:#dbeafe; color:#1e40af;}
+  .badge.model{background:#fef3c7; color:#92400e;} .badge.sample{background:#e7e5e4; color:#57534e;}
+  .lvl{font-weight:700; padding:3px 12px; border-radius:999px; color:#fff; font-size:.78rem; text-transform:capitalize; white-space:nowrap;}
   .lvl.low{background:var(--low);} .lvl.moderate{background:var(--moderate);}
-  .lvl.high{background:var(--high);} .lvl.critical{background:var(--critical);}
-  .lvl.unknown{background:#a8a29e;}
+  .lvl.high{background:var(--high);} .lvl.critical{background:var(--critical);} .lvl.unknown{background:#a8a29e;}
+  /* ---------- map ---------- */
+  #map{height:520px; border-radius:16px; border:1px solid var(--line); box-shadow:var(--shadow); z-index:1;}
+  .layer-chips{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 12px;}
+  .chip{background:var(--card); border:1px solid #e9dfc9; border-radius:999px; padding:6px 14px;
+    cursor:pointer; font-size:.82rem; display:flex; align-items:center; gap:6px; box-shadow:var(--shadow);}
+  .chip .dot{width:10px; height:10px; border-radius:50%;}
+  .chip.off{opacity:.45;}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:.78rem; margin-top:8px; color:var(--muted);}
+  /* ---------- timeline ---------- */
+  .timeline{position:relative; margin-left:8px; padding-left:26px;}
+  .timeline::before{content:''; position:absolute; left:8px; top:6px; bottom:6px; width:2px; background:#e9dfc9;}
+  .tl-item{position:relative; padding:10px 0 10px 6px;}
+  .tl-item::before{content:''; position:absolute; left:-24px; top:16px; width:12px; height:12px; border-radius:50%;
+    background:var(--muted); border:2px solid #fff; box-shadow:0 0 0 2px #e9dfc9;}
+  .tl-item.sev-emergency::before{background:var(--critical);} .tl-item.sev-warning::before{background:var(--high);}
+  .tl-item.sev-watch::before{background:var(--moderate);} .tl-item.sev-advisory::before{background:var(--low);}
+  .tl-item.quake::before{background:#7c3aed;} .tl-item.river::before{background:#0284c7;}
+  .tl-card{background:var(--card); border-radius:12px; padding:10px 14px; box-shadow:var(--shadow); border:1px solid var(--line); font-size:.88rem;}
+  .tl-card .tl-time{font-size:.72rem; color:var(--muted);}
+  .tl-card b.mag{font-size:1.05rem; color:var(--violet-deep);}
+  /* ---------- tables & bars ---------- */
   table{width:100%; border-collapse:collapse; background:var(--card); border-radius:14px; overflow:hidden;
-    box-shadow:0 2px 10px rgba(60,40,10,.07); font-size:.9rem;}
-  th,td{padding:10px 12px; text-align:left; border-bottom:1px solid #f3ecdd;}
-  th{background:#f6efe0; font-size:.75rem; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);}
+    box-shadow:var(--shadow); font-size:.9rem;}
+  th,td{padding:10px 12px; text-align:left; border-bottom:1px solid #f3ecdd; vertical-align:middle;}
+  th{background:#f6efe0; font-size:.72rem; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);}
   tr:last-child td{border-bottom:none;}
-  .alert-card{border-left:6px solid var(--watch); margin-bottom:12px;}
-  .alert-card.warning{border-color:var(--warning);} .alert-card.emergency{border-color:var(--emergency);}
-  .alert-card.advisory{border-color:var(--advisory);}
-  .alert-card h4{margin-bottom:6px;}
-  .alert-card ul{margin:8px 0 0 18px; font-size:.88rem;}
-  .alert-card .meta{font-size:.75rem; color:var(--muted); margin-top:8px;}
+  .rainbar{height:8px; border-radius:99px; background:#f3ecdd; margin-top:5px; min-width:70px;}
+  .rainbar>div{height:8px; border-radius:99px; background:linear-gradient(90deg,#38bdf8,#0284c7);}
+  .levelbar{position:relative; height:10px; border-radius:99px; background:#f3ecdd; min-width:110px; margin-top:4px;}
+  .levelbar .fill{position:absolute; left:0; top:0; bottom:0; border-radius:99px; background:#38bdf8;}
+  .levelbar .mark{position:absolute; top:-3px; bottom:-3px; width:2px; background:#94a3b8;}
+  .levelbar .mark.danger{background:var(--critical);}
   .pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
   .city-pill{background:var(--card); border:1px solid #e9dfc9; border-radius:999px; padding:6px 14px;
-    cursor:pointer; font-size:.85rem;}
+    cursor:pointer; font-size:.85rem; box-shadow:var(--shadow);}
   .city-pill.active{background:var(--violet); color:#fff; border-color:var(--violet);}
+  /* ---------- grids ---------- */
+  .grid{display:grid; gap:16px;}
+  .cards4{grid-template-columns:repeat(auto-fit,minmax(230px,1fr));}
+  .glof-card{border-left:6px solid var(--moderate);}
+  .glof-card.st-warning{border-left-color:var(--high);} .glof-card.st-watch{border-left-color:var(--moderate);}
   .forecast-day{display:flex; justify-content:space-between; padding:9px 4px; border-bottom:1px dashed #eee2c9; font-size:.9rem;}
   .forecast-day:last-child{border-bottom:none;}
   .guide-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px;}
   .guide h4{margin-bottom:8px; font-size:1rem;}
   .guide ol{margin-left:18px; font-size:.88rem; display:grid; gap:6px;}
-  footer{margin:26px 0 10px; font-size:.78rem; color:var(--muted); text-align:center; line-height:1.7;}
-  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:.8rem; margin-top:8px; color:var(--muted);}
-  .legend span{display:flex; align-items:center; gap:6px;}
-  .dot{width:11px; height:11px; border-radius:50%; display:inline-block;}
-  #loading{position:fixed; inset:0; background:rgba(250,246,237,.85); display:flex; align-items:center;
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  footer{margin:28px 0 10px; font-size:.78rem; color:var(--muted); text-align:center; line-height:1.7;}
+  #loading{position:fixed; inset:0; background:rgba(250,246,237,.88); display:flex; align-items:center;
     justify-content:center; font-size:1.1rem; color:var(--violet); z-index:999;}
-  @media(max-width:640px){ #map{height:320px;} .stat{font-size:1.5rem;} }
+  select#districtSelect{font-size:1rem; padding:8px 12px; border-radius:10px; border:1px solid #e9dfc9; background:var(--card); max-width:100%;}
+  @media(max-width:760px){ #map{height:340px;} .kpi .num{font-size:1.6rem;} .two-col{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
 <div id="loading">⏳ <span data-i18n="loading">Loading live data…</span></div>
 
 <header>
-  <div>
-    <h1>🛡️ Suraksha <span class="ne">· सुरक्षा</span></h1>
-    <div class="sub" data-i18n="tagline">Nepal Disaster Management &amp; Early Warning System</div>
-  </div>
-  <div style="display:flex;gap:10px;align-items:center;">
-    <span id="clock" style="font-size:.85rem;opacity:.9;"></span>
+  <div><h1>🛡️ Suraksha <span class="ne">· सुरक्षा</span></h1></div>
+  <div class="hdr-right">
+    <span id="threatPill" class="threat-pill">…</span>
+    <span id="clock"></span>
     <button class="lang-toggle" id="langBtn" onclick="toggleLang()">नेपाली</button>
   </div>
 </header>
 
-<div id="alertBanner"></div>
+<div class="hero">
+  <div class="hero-inner">
+    <h2 data-i18n="situationNow">Nepal right now</h2>
+    <div class="hero-sub"><span data-i18n="situationSub">Live picture from DHM, NEMRC, USGS, GDACS and our risk model — updated minutes ago.</span></div>
+    <div class="kpis" id="kpis"></div>
+    <div id="topAlert"></div>
+  </div>
+</div>
 
 <main>
-  <div class="grid cards4" id="statCards"></div>
-
   <section>
     <h2>🗺️ <span data-i18n="liveMap">Live Hazard Map</span>
-      <span class="badge live">Live</span> <span class="badge verified">Verified</span> <span class="badge model">Model</span>
-    </h2>
+      <span class="badge live">Live</span> <span class="badge verified">Verified</span> <span class="badge model">Model</span></h2>
+    <div class="layer-chips" id="layerChips"></div>
     <div id="map"></div>
-    <div class="legend">
-      <span><span class="dot" style="background:#dc2626"></span><span data-i18n="lgQuake">Earthquake (size = magnitude)</span></span>
-      <span><span class="dot" style="background:#7c3aed"></span><span data-i18n="lgNemrc">Nepal quakes (NEMRC)</span></span>
-      <span><span class="dot" style="background:#6d28d9"></span><span data-i18n="lgCity">City risk</span></span>
-      <span><span class="dot" style="background:#0284c7"></span><span data-i18n="lgLake">Glacial lake (verified)</span></span>
-      <span><span class="dot" style="background:#16a34a"></span><span data-i18n="lgShelter">Shelter (verified)</span></span>
-    </div>
   </section>
 
   <section>
-    <h2>🚨 <span data-i18n="alerts">Active Alerts</span></h2>
-    <div id="alertsList"></div>
-  </section>
-
-  <section>
-    <h2>🌧️ <span data-i18n="forecast">7-Day Weather Forecast</span> — <span id="forecastDistrict"></span> <span class="badge live">Live</span></h2>
-    <div style="margin-bottom:10px;"><select id="districtSelect" onchange="selectCity(this.value)"
-        style="font-size:1rem;padding:8px 12px;border-radius:10px;border:1px solid #e9dfc9;background:var(--card);max-width:100%;"></select></div>
-    <div class="card"><div id="forecastBody"></div>
-      <div class="meta" style="font-size:.75rem;color:var(--muted);margin-top:8px;" data-i18n="srcMeteo">Source: Open-Meteo (free, no key)</div>
-    </div>
+    <h2>📡 <span data-i18n="latestEvents">Latest events</span> <span class="count-badge" id="tlCount"></span></h2>
+    <div class="sec-sub" data-i18n="latestSub">Alerts, earthquakes and river warnings in one live feed — newest first.</div>
+    <div class="timeline" id="timeline"></div>
   </section>
 
   <section>
     <h2>📊 <span data-i18n="riskTable">District Risk Overview</span> <span class="badge model">Model</span>
-      <button id="riskToggle" onclick="toggleRiskFilter()" class="city-pill" style="margin-left:8px;font-size:.75rem;">Show all 77</button>
-      <span id="riskCount" style="font-size:.8rem;color:var(--muted);margin-left:8px;"></span></h2>
-    <div class="card" style="padding:0;overflow-x:auto;max-height:480px;overflow-y:auto;">
+      <span class="count-badge" id="riskCount"></span></h2>
+    <div class="sec-sub" data-i18n="riskSub">72-hour rainfall vs flood, landslide and seismic risk. Bars show forecast rain relative to the wettest district.</div>
+    <div class="pill-row">
+      <button class="city-pill active" id="fAttention" onclick="setRiskFilter('attention')" data-i18n="showAttention">Needs attention only</button>
+      <button class="city-pill" id="fAll" onclick="setRiskFilter('all')" data-i18n="showAll">Show all 77</button>
+    </div>
+    <div class="card" style="padding:0;overflow-x:auto;max-height:520px;overflow-y:auto;">
       <table><thead style="position:sticky;top:0;background:var(--card);z-index:1;"><tr>
         <th data-i18n="thCity">District</th><th data-i18n="thRain">Rain 72h</th>
         <th data-i18n="thFlood">Flood</th><th data-i18n="thSlide">Landslide</th>
@@ -138,7 +172,7 @@
       </tr></thead><tbody id="riskBody"></tbody></table>
     </div>
     <div style="font-size:.78rem;color:var(--muted);margin-top:6px;" data-i18n="modelNote">
-      Prototype heuristic: 72h forecast rainfall thresholds. Not an official DHM/NDRRMA forecast.
+      Transparent heuristic: 72h forecast rainfall thresholds + DHM gauge overrides. Not an official DHM/NDRRMA forecast.
     </div>
   </section>
 
@@ -149,8 +183,10 @@
   </section>
 
   <section>
-    <h2>🌊 <span data-i18n="rivers">Live River Gauges (DHM)</span> <span class="badge live">Live</span></h2>
-    <div class="card" style="padding:0;overflow-x:auto;max-height:420px;overflow-y:auto;">
+    <h2>🌊 <span data-i18n="rivers">Live River Gauges (DHM)</span> <span class="badge live">Live</span>
+      <span class="count-badge" id="riverCount"></span></h2>
+    <div class="sec-sub" data-i18n="riverSub">Bars show the current level against each station's warning and danger marks.</div>
+    <div class="card" style="padding:0;overflow-x:auto;max-height:460px;overflow-y:auto;">
       <table><thead style="position:sticky;top:0;background:var(--card);z-index:1;"><tr>
         <th data-i18n="thStation">Station</th><th data-i18n="thLevel">Water level</th>
         <th data-i18n="thStatus">Status</th><th data-i18n="thTrend">Trend</th><th data-i18n="thRiver">River/Basin</th>
@@ -160,20 +196,25 @@
   </section>
 
   <section>
-    <h2>🚨 <span data-i18n="incidents">Disaster Incidents — Nepal</span> <span class="badge live">Live</span></h2>
-    <div class="grid cards4" id="incidentGrid"></div>
+    <h2>🌧️ <span data-i18n="forecast">7-Day Weather Forecast</span> — <span id="forecastDistrict"></span> <span class="badge live">Live</span></h2>
+    <div style="margin-bottom:10px;"><select id="districtSelect" onchange="selectCity(this.value)"></select></div>
+    <div class="card"><div id="forecastBody"></div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:8px;" data-i18n="srcMeteo">Source: Open-Meteo (free, no key)</div>
+    </div>
   </section>
 
-  <section>
-    <h2>⛺ <span data-i18n="shelters">Emergency Shelters</span> <span class="badge verified">Verified</span></h2>
-    <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;" data-i18n="shelterNote">83 open spaces designated by IOM + Ministry of Home Affairs (2013), Nepal Gazette. Coordinates approximate.</div>
-    <div class="grid cards4" id="shelterGrid"></div>
-  </section>
-
-  <section>
-    <h2>📋 <span data-i18n="guides">What To Do — Safety Guides</span></h2>
-    <div class="guide-grid" id="guideGrid"></div>
-  </section>
+  <div class="two-col">
+    <section>
+      <h2>⛺ <span data-i18n="shelters">Emergency Shelters</span> <span class="badge verified">Verified</span></h2>
+      <div class="sec-sub" data-i18n="shelterNote">83 open spaces designated by IOM + Ministry of Home Affairs (2013), Nepal Gazette. Coordinates approximate.</div>
+      <div class="grid cards4" id="shelterGrid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));"></div>
+    </section>
+    <section>
+      <h2>📋 <span data-i18n="guides">What To Do — Safety Guides</span></h2>
+      <div class="sec-sub" data-i18n="guidesSub">If an alert names your area, act on the matching guide immediately.</div>
+      <div class="guide-grid" id="guideGrid" style="grid-template-columns:1fr;"></div>
+    </section>
+  </div>
 
   <section>
     <h2>🔌 <span data-i18n="sources">Data Sources</span></h2>
@@ -181,50 +222,83 @@
       <div>🛰️ <b>USGS Earthquake Hazards Program</b> — <span class="badge live">Live</span> <span data-i18n="srcUsgs">real-time global earthquake feed, no key needed</span></div>
       <div>🌦️ <b>Open-Meteo / MET Norway</b> — <span class="badge live">Live</span> <span data-i18n="srcMeteo2">current + 7-day forecast, no key needed · MET Norway fallback when Open-Meteo rate-limits</span></div>
       <div>🇳🇵 <b>NEMRC Nepal</b> — <span class="badge live">Live</span> <span data-i18n="srcNemrc">National Earthquake Monitoring & Research Centre catalog</span></div>
-      <div>🏔️ <b>ICIMOD + UNDP</b> — <span class="badge verified">Verified</span> <span data-i18n="srcIcimod">47 potentially dangerous glacial lakes (2026 assessment)</span></div>
-      <div>⛺ <b>IOM + MoHA Nepal</b> — <span class="badge verified">Verified</span> <span data-i18n="srcIom">83 designated open spaces (2013, Nepal Gazette)</span></div>
+      <div>🏔️ <b>ICIMOD + UNDP + GoN (2026)</b> — <span class="badge verified">Verified</span> <span data-i18n="srcIcimod">6 priority glacial lakes with real-time watch registry</span></div>
+      <div>⛺ <b>IOM + MoHA Nepal</b> — <span class="badge verified">Verified</span> <span data-i18n="srcIom">10 verified open spaces of 83 designated (2013, Nepal Gazette)</span></div>
       <div>🌊 <b>DHM Nepal (hydrology.gov.np)</b> — <span class="badge live">Live</span> <span data-i18n="srcDhm">real-time river gauge feed</span></div>
       <div>🚨 <b>GDACS</b> — <span class="badge live">Live</span> <span data-i18n="srcGdacs">global disaster alerts, Nepal incidents</span></div>
       <div>🛰️ <b>Copernicus Sentinel-2</b> — <span class="badge live">Live</span> <span data-i18n="srcS2">latest clear satellite view per glacial lake</span></div>
-      <div>🏛️ <b>BIPAD / NDRRMA Nepal</b> — <span class="badge model">Planned</span> <span data-i18n="srcBipad">national disaster portal (unreachable from our network; direct DHM + GDACS used instead)</span></div>
+      <div>🏛️ <b>BIPAD / NDRRMA Nepal</b> — <span class="badge model">Planned</span> <span data-i18n="srcBipad">unreachable from our network — direct DHM + GDACS used instead</span></div>
       <div style="margin-top:8px;font-size:.78rem;color:var(--muted);"><span data-i18n="srcHealth">Upstream health (probed from this server)</span>: <span id="srcHealth"></span></div>
     </div>
   </section>
 
   <footer>
-    <span data-i18n="footer">Suraksha v0.2 · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·</span>
+    <span data-i18n="footer">Suraksha · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·</span>
     <span id="updatedAt"></span>
   </footer>
 </main>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 let LANG = 'en';
 const I18N = {
-  en:{loading:"Loading live data…",tagline:"Nepal Disaster Management & Early Warning System",
-    liveMap:"Live Hazard Map",lgQuake:"Earthquake (size = magnitude)",lgCity:"City risk",lgLake:"Glacial lake (verified)",lgShelter:"Shelter (verified)",lgNemrc:"Nepal quakes (NEMRC)",
-    alerts:"Active Alerts",forecast:"7-Day Weather Forecast",srcMeteo:"Source: Open-Meteo (free, no key)",
-    riskTable:"District Risk Overview",thCity:"District",thRain:"Rain 72h",thFlood:"Flood",thSlide:"Landslide",thSeis:"Seismic",thGauge:"River gauge",thOverall:"Overall",
-    modelNote:"Prototype heuristic: 72h forecast rainfall thresholds. Not an official DHM/NDRRMA forecast.",
-    glof:"GLOF Watch — Glacial Lakes",shelters:"Emergency Shelters",guides:"What To Do — Safety Guides",sources:"Data Sources",
-    srcUsgs:"real-time global earthquake feed, no key needed",srcMeteo2:"current + 16-day forecast, no key needed",
-    srcNemrc:"National Earthquake Monitoring & Research Centre catalog",srcIcimod:"47 potentially dangerous glacial lakes (2026 assessment)",srcIom:"83 designated open spaces (2013, Nepal Gazette)",srcBipad:"national disaster portal: DHM river gauges, incident reports (integration ready)",
-    srcGlof:"lake-level IoT + satellite change detection (v2 roadmap)",
-    footer:"Suraksha v0.2 · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·",
-    noAlerts:"✅ No active alerts right now. Stay prepared.",cities:"Cities monitored",districts:"Districts monitored",needAttention:"need attention",showAll:"Show all 77",showAttention:"Needs attention only",rivers:"Live River Gauges (DHM)",thStation:"Station",thLevel:"Water level",thStatus:"Status",thTrend:"Trend",thRiver:"River/Basin",incidents:"Disaster Incidents — Nepal",srcDhm:"real-time river gauge feed",srcGdacs:"global disaster alerts, Nepal incidents",srcS2:"latest clear satellite view per glacial lake",srcHealth:"Upstream health (probed from this server)",noRivers:"River gauge feed unavailable right now.",noIncidents:"No Nepal incidents on GDACS right now.",stations:"stations",report:"report",lastClearView:"Last clear satellite view",noClearView:"No clear view lately (clouds)",srcDhmLine:"Source",quakes:"Quakes (30d, M4.5+)",activeAlerts:"Active alerts",lakes:"Lakes watched",
-    downstream:"Downstream",actions:"Do this now",shelterNote:"83 open spaces designated by IOM + Ministry of Home Affairs (2013), Nepal Gazette. Coordinates approximate.",issued:"Issued",source:"Source",updated:"Updated"},
-  ne:{loading:"लाइभ डाटा लोड हुँदैछ…",tagline:"नेपाल विपद् व्यवस्थापन तथा पूर्वसूचना प्रणाली",
-    liveMap:"लाइभ जोखिम नक्सा",lgQuake:"भूकम्प (आकार = म्याग्निच्युड)",lgCity:"शहर जोखिम",lgLake:"हिमताल (प्रमाणित)",lgShelter:"आश्रयस्थल (प्रमाणित)",lgNemrc:"नेपाल भूकम्प (NEMRC)",
-    alerts:"सक्रिय सतर्कताहरू",forecast:"७-दिने मौसम पूर्वानुमान",srcMeteo:"स्रोत: Open-Meteo (नि:शुल्क)",
-    riskTable:"जिल्ला जोखिम विवरण",thCity:"जिल्ला",thRain:"७२घ. वर्षा",thFlood:"बाढी",thSlide:"पहिरो",thSeis:"भूकम्पीय",thGauge:"नदी गेज",thOverall:"समग्र",
-    modelNote:"प्रोटोटाइप अनुमान: ७२-घण्टे वर्षा थ्रेसहोल्ड। आधिकारिक DHM/NDRRMA पूर्वानुमान होइन।",
-    glof:"हिमताल निगरानी",shelters:"आपतकालीन आश्रयस्थल",guides:"के गर्ने — सुरक्षा निर्देशिका",sources:"डाटा स्रोतहरू",
-    srcUsgs:"वास्तविक-समय विश्व भूकम्प फिड",srcMeteo2:"हालको + १६-दिने पूर्वानुमान",
-    srcNemrc:"राष्ट्रिय भूकम्प मापन तथा अनुसन्धान केन्द्र",srcIcimod:"४७ सम्भावित खतरनाक हिमताल (२०२६ मूल्याङ्कन)",srcIom:"८३ तोकिएका खुला क्षेत्र (२०१३, नेपाल राजपत्र)",srcBipad:"राष्ट्रिय विपद् पोर्टल: DHM नदी मापन, घटना रिपोर्ट (एकीकरण तयार)",
-    srcGlof:"ताल सतह IoT + स्याटेलाइट निगरानी (v2 योजना)",
-    footer:"सुरक्षा v0.1 प्रोटोटाइप · जोखिम स्कोर अनुमान मात्र हुन् · वास्तविक आपतकालमा नेपाल प्रहरी १०० मा कल गर्नुहोस् ·",
-    noAlerts:"✅ हाल कुनै सक्रिय सतर्कता छैन। तयार रहनुहोस्।",cities:"निगरानी शहर",districts:"निगरानी जिल्लाहरू",needAttention:"लाई ध्यान आवश्यक",showAll:"सबै ७७ देखाउनुहोस्",showAttention:"ध्यान आवश्यक मात्र",rivers:"लाइभ नदी मापन (DHM)",thStation:"स्टेशन",thLevel:"पानीको सतह",thStatus:"स्थिति",thTrend:"प्रवृत्ति",thRiver:"नदी/जलाधार",incidents:"विपद् घटनाहरू — नेपाल",srcDhm:"वास्तविक-समय नदी मापन फिड",srcGdacs:"विश्वव्यापी विपद् सतर्कता, नेपाल घटनाहरू",srcS2:"प्रति हिमताल पछिल्लो स्पष्ट स्याटेलाइट दृश्य",srcHealth:"अपस्ट्रीम स्वास्थ्य (यही सर्भरबाट जाँचिएको)",noRivers:"नदी मापन फिड अहिले उपलब्ध छैन।",noIncidents:"GDACS मा अहिले नेपालका घटना छैनन्।",stations:"स्टेशनहरू",report:"रिपोर्ट",lastClearView:"पछिल्लो स्पष्ट स्याटेलाइट दृश्य",noClearView:"भर्खर स्पष्ट दृश्य छैन (बादल)",srcDhmLine:"स्रोत",quakes:"भूकम्प (३०दि, M4.5+)",activeAlerts:"सक्रिय सतर्कता",lakes:"निगरानी ताल",
-    downstream:"तल्लो तटीय",shelterNote:"IOM + गृह मन्त्रालयद्वारा तोकिएका ८३ खुला क्षेत्र (२०१३), नेपाल राजपत्र। निर्देशांक अनुमानित।",actions:"अहिले यो गर्नुहोस्",issued:"जारी",source:"स्रोत",updated:"अद्यावधिक"}
+  en:{loading:"Loading live data…", situationNow:"Nepal right now",
+    situationSub:"Live picture from DHM, NEMRC, USGS, GDACS and our risk model — updated minutes ago.",
+    liveMap:"Live Hazard Map", latestEvents:"Latest events",
+    latestSub:"Alerts, earthquakes and river warnings in one live feed — newest first.",
+    riskTable:"District Risk Overview", riskSub:"72-hour rainfall vs flood, landslide and seismic risk. Bars show forecast rain relative to the wettest district.",
+    thCity:"District", thRain:"Rain 72h", thFlood:"Flood", thSlide:"Landslide", thSeis:"Seismic", thGauge:"River gauge", thOverall:"Overall",
+    modelNote:"Transparent heuristic: 72h forecast rainfall thresholds + DHM gauge overrides. Not an official DHM/NDRRMA forecast.",
+    glof:"GLOF Watch — Glacial Lakes", rivers:"Live River Gauges (DHM)",
+    riverSub:"Bars show the current level against each station's warning and danger marks.",
+    thStation:"Station", thLevel:"Water level", thStatus:"Status", thTrend:"Trend", thRiver:"River/Basin",
+    forecast:"7-Day Weather Forecast", srcMeteo:"Source: Open-Meteo (free, no key)",
+    shelters:"Emergency Shelters", shelterNote:"83 open spaces designated by IOM + Ministry of Home Affairs (2013), Nepal Gazette. Coordinates approximate.",
+    guides:"What To Do — Safety Guides", guidesSub:"If an alert names your area, act on the matching guide immediately.",
+    sources:"Data Sources",
+    srcUsgs:"real-time global earthquake feed, no key needed", srcMeteo2:"current + 7-day forecast, no key needed · MET Norway fallback when Open-Meteo rate-limits",
+    srcNemrc:"National Earthquake Monitoring & Research Centre catalog", srcIcimod:"6 priority glacial lakes with real-time watch registry",
+    srcIom:"10 verified open spaces of 83 designated (2013, Nepal Gazette)", srcDhm:"real-time river gauge feed",
+    srcGdacs:"global disaster alerts, Nepal incidents", srcS2:"latest clear satellite view per glacial lake",
+    srcBipad:"unreachable from our network — direct DHM + GDACS used instead", srcHealth:"Upstream health (probed from this server)",
+    footer:"Suraksha · Risk scores are transparent heuristics, not official forecasts · In a real emergency call Nepal Police 100 ·",
+    noAlerts:"No active alerts right now. Stay prepared.", showAll:"Show all 77", showAttention:"Needs attention only",
+    noRivers:"River gauge feed unavailable right now.", noEvents:"No recent events. All quiet.",
+    stations:"stations", report:"report", lastClearView:"Last clear satellite view", noClearView:"No clear view lately (clouds)", srcDhmLine:"Source",
+    activeAlerts:"Active alerts", strongestQuake:"Strongest quake · 30 days", districtsWatch:"Districts needing attention", riversHigh:"River stations elevated",
+    downstream:"Downstream", actions:"Do this now", issued:"Issued", source:"Source", updated:"Updated",
+    threatNone:"All clear", threatAdvisory:"Advisory", threatWatch:"Watch", threatWarning:"Warning", threatEmergency:"Emergency",
+    layers:"Layers", quakes:"Quakes", nemrcQuakes:"Nepal quakes", cityRisk:"City risk", lakes:"Lakes", sheltersL:"Shelters",
+    justNow:"just now", agoMin:"min ago", agoHr:"hr ago", agoDay:"days ago",
+    steady:"steady", rising:"rising", falling:"falling", warnMark:"warn", dangerMark:"danger"},
+  ne:{loading:"लाइभ डाटा लोड हुँदैछ…", situationNow:"अहिले नेपालमा",
+    situationSub:"DHM, NEMRC, USGS, GDACS र हाम्रो जोखिम मोडेलबाट लाइभ चित्र — केही मिनेटअघि अद्यावधिक।",
+    liveMap:"लाइभ जोखिम नक्सा", latestEvents:"पछिल्ला घटनाहरू",
+    latestSub:"सतर्कता, भूकम्प र नदी चेतावनी — एउटै लाइभ फिडमा, नयाँ पहिले।",
+    riskTable:"जिल्ला जोखिम विवरण", riskSub:"७२-घण्टे वर्षा बनाम बाढी, पहिरो र भूकम्पीय जोखिम। बारले सबैभन्दा बढी वर्षा हुने जिल्लाको तुलनामा देखाउँछ।",
+    thCity:"जिल्ला", thRain:"७२घ. वर्षा", thFlood:"बाढी", thSlide:"पहिरो", thSeis:"भूकम्पीय", thGauge:"नदी गेज", thOverall:"समग्र",
+    modelNote:"पारदर्शी अनुमान: ७२-घण्टे वर्षा थ्रेसहोल्ड + DHM गेज ओभरराइड। आधिकारिक DHM/NDRRMA पूर्वानुमान होइन।",
+    glof:"हिमताल निगरानी", rivers:"लाइभ नदी मापन (DHM)",
+    riverSub:"बारले प्रत्येक स्टेशनको चेतावनी र खतरा चिन्हको तुलनामा हालको सतह देखाउँछ।",
+    thStation:"स्टेशन", thLevel:"पानीको सतह", thStatus:"स्थिति", thTrend:"प्रवृत्ति", thRiver:"नदी/जलाधार",
+    forecast:"७-दिने मौसम पूर्वानुमान", srcMeteo:"स्रोत: Open-Meteo (नि:शुल्क)",
+    shelters:"आपतकालीन आश्रयस्थल", shelterNote:"IOM + गृह मन्त्रालयद्वारा तोकिएका ८३ खुला क्षेत्र (२०१३), नेपाल राजपत्र। निर्देशांक अनुमानित।",
+    guides:"के गर्ने — सुरक्षा निर्देशिका", guidesSub:"सतर्कताले तपाईंको क्षेत्र तोकेमा तुरुन्तै मिल्दो निर्देशिका पालना गर्नुहोस्।",
+    sources:"डाटा स्रोतहरू",
+    srcUsgs:"वास्तविक-समय विश्व भूकम्प फिड", srcMeteo2:"हालको + ७-दिने पूर्वानुमान · Open-Meteo सीमामा MET Norway विकल्प",
+    srcNemrc:"राष्ट्रिय भूकम्प मापन तथा अनुसन्धान केन्द्र", srcIcimod:"६ प्राथमिकता हिमताल, वास्तविक-समय निगरानी रजिस्ट्री",
+    srcIom:"८३ मध्ये १० प्रमाणित खुला क्षेत्र (२०१३, नेपाल राजपत्र)", srcDhm:"वास्तविक-समय नदी मापन फिड",
+    srcGdacs:"विश्वव्यापी विपद् सतर्कता, नेपाल घटनाहरू", srcS2:"प्रति हिमताल पछिल्लो स्पष्ट स्याटेलाइट दृश्य",
+    srcBipad:"हाम्रो नेटवर्कबाट पुग्न सकिँदैन — प्रत्यक्ष DHM + GDACS प्रयोग", srcHealth:"अपस्ट्रीम स्वास्थ्य (यही सर्भरबाट जाँचिएको)",
+    footer:"सुरक्षा · जोखिम स्कोर अनुमान मात्र हुन्, आधिकारिक पूर्वानुमान होइन · वास्तविक आपतकालमा नेपाल प्रहरी १०० मा कल गर्नुहोस् ·",
+    noAlerts:"हाल कुनै सक्रिय सतर्कता छैन। तयार रहनुहोस्।", showAll:"सबै ७७ देखाउनुहोस्", showAttention:"ध्यान आवश्यक मात्र",
+    noRivers:"नदी मापन फिड अहिले उपलब्ध छैन।", noEvents:"भर्खर कुनै घटना छैन। सबै शान्त छ।",
+    stations:"स्टेशनहरू", report:"रिपोर्ट", lastClearView:"पछिल्लो स्पष्ट स्याटेलाइट दृश्य", noClearView:"भर्खर स्पष्ट दृश्य छैन (बादल)", srcDhmLine:"स्रोत",
+    activeAlerts:"सक्रिय सतर्कता", strongestQuake:"ठूलो भूकम्प · ३० दिन", districtsWatch:"ध्यान आवश्यक जिल्ला", riversHigh:"बढेका नदी स्टेशन",
+    downstream:"तल्लो तटीय", actions:"अहिले यो गर्नुहोस्", issued:"जारी", source:"स्रोत", updated:"अद्यावधिक",
+    threatNone:"सबै सामान्य", threatAdvisory:"सल्लाह", threatWatch:"निगरानी", threatWarning:"चेतावनी", threatEmergency:"आपतकाल",
+    layers:"तहहरू", quakes:"भूकम्प", nemrcQuakes:"नेपाल भूकम्प", cityRisk:"शहर जोखिम", lakes:"ताल", sheltersL:"आश्रय",
+    justNow:"भर्खरै", agoMin:"मिनेटअघि", agoHr:"घण्टाअघि", agoDay:"दिनअघि",
+    steady:"स्थिर", rising:"बढ्दो", falling:"घट्दो", warnMark:"चेतावनी", dangerMark:"खतरा"}
 };
 const t = k => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
 const cityName = c => LANG==='ne' ? c.name_ne : c.name_en;
@@ -237,93 +311,225 @@ const API = '';
 let DATA = {overview:null, alerts:[], risk:[], quakes:[], nemrc:[], weather:{}, glof:[], glofSummary:null, scenes:[], shelters:[], rivers:null, incidents:[], srcHealth:null, city:'kathmandu'};
 async function get(p){ const r = await fetch(API+p); if(!r.ok) throw new Error(p+' → '+r.status); return r.json(); }
 const RISK_COLOR = {low:'#16a34a', moderate:'#ca8a04', high:'#ea580c', critical:'#dc2626', unknown:'#a8a29e'};
+const SEV_RANK = {advisory:1, watch:2, warning:3, emergency:4};
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function ago(iso){
+  if(!iso) return t('justNow');
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(ms/60000);
+  if(m < 1) return t('justNow');
+  if(m < 60) return m + ' ' + t('agoMin');
+  const h = Math.floor(m/60);
+  if(h < 24) return h + ' ' + t('agoHr');
+  return Math.floor(h/24) + ' ' + t('agoDay');
+}
 </script>
 <script>
-let map, quakeLayer, nemrcLayer, cityLayer, lakeLayer, shelterLayer;
+/* ---------- map ---------- */
+let map, LAYERS = {};
+const LAYER_DEFS = [
+  {id:'quake',  label:'quakes',      color:'#dc2626'},
+  {id:'nemrc',  label:'nemrcQuakes', color:'#7c3aed'},
+  {id:'city',   label:'cityRisk',    color:'#6d28d9'},
+  {id:'lake',   label:'lakes',       color:'#0284c7'},
+  {id:'shelter',label:'sheltersL',   color:'#16a34a'},
+];
+const LAYER_ON = {quake:true, nemrc:true, city:true, lake:true, shelter:true};
 function initMap(){
   map = L.map('map').setView([28.1, 84.2], 7);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     {attribution:'© OpenStreetMap contributors', maxZoom:18}).addTo(map);
-  quakeLayer = L.layerGroup().addTo(map);
-  nemrcLayer = L.layerGroup().addTo(map);
-  cityLayer = L.layerGroup().addTo(map);
-  lakeLayer = L.layerGroup().addTo(map);
-  shelterLayer = L.layerGroup().addTo(map);
+  LAYER_DEFS.forEach(d=>{ LAYERS[d.id] = L.layerGroup().addTo(map); });
+  document.getElementById('layerChips').innerHTML = LAYER_DEFS.map(d=>
+    `<button class="chip" id="chip-${d.id}" onclick="toggleLayer('${d.id}')">
+       <span class="dot" style="background:${d.color}"></span>${t(d.label)}</button>`).join('');
+}
+function toggleLayer(id){
+  LAYER_ON[id] = !LAYER_ON[id];
+  document.getElementById('chip-'+id).classList.toggle('off', !LAYER_ON[id]);
+  if(LAYER_ON[id]) map.addLayer(LAYERS[id]); else map.removeLayer(LAYERS[id]);
 }
 function depthColor(d){ return d==null?'#f59e0b': d<70?'#f59e0b': d<300?'#ea580c':'#7c2d12'; }
-
 function renderMap(){
-  quakeLayer.clearLayers(); nemrcLayer.clearLayers(); cityLayer.clearLayers(); lakeLayer.clearLayers(); shelterLayer.clearLayers();
+  Object.values(LAYERS).forEach(l=>l.clearLayers());
   (DATA.quakes||[]).slice(0,120).forEach(q=>{
     if(q.mag==null) return;
     const r = Math.max(4, q.mag*3.2);
     L.circleMarker([q.lat,q.lon],{radius:r,color:depthColor(q.depth_km),weight:1.5,
       fillColor:depthColor(q.depth_km),fillOpacity:.55})
-     .bindPopup(`<b>M${q.mag} — ${q.place||''}</b><br>${q.time.slice(0,16).replace('T',' ')} UTC<br>Depth: ${q.depth_km} km${q.in_nepal?'<br><b>In Nepal</b>':''}${q.url?`<br><a href="${q.url}" target="_blank">USGS</a>`:''}`)
-     .addTo(quakeLayer);
+     .bindPopup(`<b>M${q.mag} — ${esc(q.place||'')}</b><br>${ago(q.time)}<br>Depth: ${q.depth_km} km${q.in_nepal?'<br><b>In Nepal</b>':''}${q.url?`<br><a href="${q.url}" target="_blank">USGS</a>`:''}`)
+     .addTo(LAYERS.quake);
   });
   (DATA.nemrc||[]).forEach(q=>{
     if(q.mag==null) return;
     const r = Math.max(5, q.mag*3.4);
-    L.circleMarker([q.lat,q.lon],{radius:r,color:'#7c3aed',weight:2,
-      fillColor:'#7c3aed',fillOpacity:.6})
-     .bindPopup(`<b>M${q.mag} — ${q.place}</b> <span class="badge live">Live</span><br>${q.time.slice(0,16).replace('T',' ')} UTC<br>${LANG==='ne'?'स्रोत':'Source'}: NEMRC`)
-     .addTo(nemrcLayer);
+    L.circleMarker([q.lat,q.lon],{radius:r,color:'#7c3aed',weight:2,fillColor:'#7c3aed',fillOpacity:.6})
+     .bindPopup(`<b>M${q.mag} — ${esc(q.place)}</b> <span class="badge live">Live</span><br>${ago(q.time)}<br>${t('source')}: NEMRC`)
+     .addTo(LAYERS.nemrc);
   });
   const riskById = {}; (DATA.risk||[]).forEach(x=>riskById[x.city.id]=x);
   Object.values(DATA.weather).forEach(w=>{
     const c = w.city, rk = riskById[c.id];
     const col = rk ? (RISK_COLOR[rk.overall]||'#a8a29e') : '#6d28d9';
-    const rainTxt = rk ? (rk.rain_72h_mm!=null ? `🌧️ ${rk.rain_72h_mm} mm / 72h${rk.max_hourly_mm!=null?` (max ${rk.max_hourly_mm}/h)`:''}<br>` : `🌧️ —<br>`) : '';
-    const gaugeTxt = rk && rk.river_station ? `📍 ${rk.river_station}${rk.river_override?` <b>🌊${rk.river_override.toUpperCase()}</b>`:''}<br>` : '';
-    L.circleMarker([c.lat,c.lon],{radius:6,color:'#fff',weight:1.5,fillColor:col,fillOpacity:.9})
-     .bindPopup(`<b>${cityName(c)}</b><br>${rk?`${rainTxt}${gaugeTxt}🌊 ${rk.flood} · ⛰️ ${rk.landslide} · 🌍 ${rk.seismic}<br><b>${rk.overall.toUpperCase()}</b>`:'—'}`)
-     .addTo(cityLayer);
+    L.circleMarker([c.lat,c.lon],{radius:7,color:'#fff',weight:1.5,fillColor:col,fillOpacity:.9})
+     .bindPopup(`<b>${esc(cityName(c))}</b><br>${rk?`🌊 ${rk.flood} · ⛰️ ${rk.landslide} · 🌍 ${rk.seismic}<br><b>${esc(rk.overall).toUpperCase()}</b>`:'—'}`)
+     .addTo(LAYERS.city);
   });
   (DATA.glof||[]).forEach(l=>{
     L.marker([l.lat,l.lon],{icon:L.divIcon({className:'',html:'<div style="background:#0284c7;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid #fff;">◈</div>',iconSize:[22,22]})})
-     .bindPopup(`<b>${LANG==='ne'?l.name_ne:l.name_en}</b> <span class="badge verified">Verified</span><br>${LANG==='ne'?l.status_ne:l.status_en}<br>${t('downstream')}: ${l.downstream_en}`)
-     .addTo(lakeLayer);
+     .bindPopup(`<b>${esc(LANG==='ne'?l.name_ne:l.name_en)}</b> <span class="badge verified">Verified</span><br>${esc(LANG==='ne'?l.status_ne:l.status_en)}<br>${t('downstream')}: ${esc(l.downstream_en)}`)
+     .addTo(LAYERS.lake);
   });
   (DATA.shelters||[]).forEach(s=>{
     L.marker([s.lat,s.lon],{icon:L.divIcon({className:'',html:'<div style="background:#16a34a;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid #fff;">⛺</div>',iconSize:[20,20]})})
-     .bindPopup(`<b>${LANG==='ne'?s.name_ne:s.name_en}</b> <span class="badge verified">Verified</span><br>${LANG==='ne'?s.district_ne:s.district_en}<br>${s.fact_en}`)
-     .addTo(shelterLayer);
+     .bindPopup(`<b>${esc(LANG==='ne'?s.name_ne:s.name_en)}</b> <span class="badge verified">Verified</span><br>${esc(LANG==='ne'?s.district_ne:s.district_en)}`)
+     .addTo(LAYERS.shelter);
   });
 }
 
-function renderStats(){
-  const o = DATA.overview; if(!o) return;
+/* ---------- hero : situation now ---------- */
+function threatLevel(){
+  let lvl = null, rank = 0;
+  (DATA.alerts||[]).forEach(a=>{ const r = SEV_RANK[a.severity]||0; if(r>rank){rank=r; lvl=a.severity;} });
+  return lvl;
+}
+function renderHero(){
+  const lvl = threatLevel();
+  const pill = document.getElementById('threatPill');
+  pill.className = 'threat-pill' + (lvl ? ' '+lvl : '');
+  pill.textContent = lvl ? t('threat'+lvl[0].toUpperCase()+lvl.slice(1)) : t('threatNone');
+  const o = DATA.overview||{};
   const sev = o.alerts_by_severity||{};
-  document.getElementById('statCards').innerHTML = `
-    <div class="card"><h3>${t('activeAlerts')}</h3><div class="stat">${o.active_alerts} <small>⚠️${sev.warning||0} 🟡${sev.watch||0}</small></div></div>
-    <div class="card"><h3>${t('quakes')}</h3><div class="stat">${o.earthquakes_30d_m45}</div></div>
-    <div class="card"><h3>${t('districts')}</h3><div class="stat">${o.districts_monitored}</div></div>
-    <div class="card"><h3>${t('lakes')}</h3><div class="stat">${o.glof_lakes_watched} <small>verified</small></div></div>`;
-}
-
-function renderBanner(){
-  const b = document.getElementById('alertBanner');
+  const kpiCls = s => !s ? 'ok' : s==='advisory' ? 'ok' : s==='watch' ? 'warn' : s==='warning' ? 'bad' : 'crit';
+  let strongest = null;
+  (DATA.quakes||[]).forEach(q=>{ if(q.mag!=null && (!strongest || q.mag>strongest.mag)) strongest=q; });
+  const needAtt = (DATA.risk||[]).filter(r=>['moderate','high','critical'].includes(r.overall)).length;
+  const riversUp = ((DATA.rivers||{}).stations||[]).filter(s=>s.level==='danger'||s.level==='warning').length;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi ${kpiCls(lvl)}"><span class="big-emoji">🚨</span>
+      <div class="lbl">${t('activeAlerts')}</div><div class="num">${o.active_alerts||0}</div>
+      <div class="detail">⚠️ ${sev.warning||0} · 🟡 ${sev.watch||0} · 🟢 ${sev.advisory||0}</div></div>
+    <div class="kpi"><span class="big-emoji">🌍</span>
+      <div class="lbl">${t('strongestQuake')}</div>
+      <div class="num">${strongest?('M'+strongest.mag):'—'}</div>
+      <div class="detail">${strongest?esc(strongest.place||'')+' · '+ago(strongest.time):''}</div></div>
+    <div class="kpi ${needAtt?'warn':'ok'}"><span class="big-emoji">📊</span>
+      <div class="lbl">${t('districtsWatch')}</div><div class="num">${needAtt} <small>/ ${(DATA.risk||[]).length||77}</small></div>
+      <div class="detail">${t('riskTable')}</div></div>
+    <div class="kpi ${riversUp?'bad':'ok'}"><span class="big-emoji">🌊</span>
+      <div class="lbl">${t('riversHigh')}</div><div class="num">${riversUp} <small>/ ${((DATA.rivers||{}).station_count)||'—'}</small></div>
+      <div class="detail">DHM · ${t('srcDhmLine')}</div></div>`;
+  const top = document.getElementById('topAlert');
   const a = DATA.alerts[0];
-  if(!a){ b.className=''; b.innerHTML=''; return; }
-  b.className = 'show '+a.severity;
-  b.innerHTML = `🚨 ${LANG==='ne'?a.headline_ne:a.headline_en}`;
+  if(a){
+    top.className='show';
+    top.innerHTML = `<div class="top-alert-card ${a.severity}">
+      <h4>🚨 ${esc(LANG==='ne'?a.headline_ne:a.headline_en)}</h4>
+      <div style="font-size:.82rem;color:var(--muted);">${ago(a.issued_at)} · ${t('source')}: ${esc(a.source)} ·
+      <b>${t('actions')}:</b> ${(LANG==='ne'?a.actions_ne:a.actions_en||[]).slice(0,2).map(esc).join(' · ')}</div></div>`;
+  } else { top.className=''; top.innerHTML=''; }
 }
 
-function renderAlerts(){
-  const el = document.getElementById('alertsList');
-  if(!DATA.alerts.length){ el.innerHTML = `<div class="card">${t('noAlerts')}</div>`; return; }
-  el.innerHTML = DATA.alerts.map(a=>`
-    <div class="card alert-card ${a.severity}">
-      <h4>${LANG==='ne'?a.headline_ne:a.headline_en}</h4>
-      <div><span class="badge ${a.data_label==='live'?'live':'model'}">${a.data_label}</span>
-      <span style="font-size:.78rem;color:var(--muted)">${a.hazard} · ${a.severity}</span></div>
-      <div style="margin-top:8px;font-size:.88rem;"><b>${t('actions')}:</b>
-        <ul>${(LANG==='ne'?a.actions_ne:a.actions_en).map(x=>`<li>${x}</li>`).join('')}</ul></div>
-      <div class="meta">${t('issued')}: ${a.issued_at.slice(0,16).replace('T',' ')} · ${t('source')}: ${a.source}${a.usgs_url?` · <a href="${a.usgs_url}" target="_blank">USGS</a>`:''}</div>
-    </div>`).join('');
+/* ---------- timeline ---------- */
+function renderTimeline(){
+  const items = [];
+  (DATA.alerts||[]).forEach(a=>items.push({time:a.issued_at, cls:'sev-'+a.severity,
+    html:`<b>🚨 ${esc(LANG==='ne'?a.headline_ne:a.headline_en)}</b><br><span class="tl-time">${ago(a.issued_at)} · ${esc(a.hazard)} · ${a.severity}</span>`}));
+  (DATA.quakes||[]).slice(0,10).forEach(q=>{ if(q.mag==null) return;
+    items.push({time:q.time, cls:'quake',
+      html:`<b class="mag">M${q.mag}</b> — ${esc(q.place||'')}${q.in_nepal?' <b>· Nepal</b>':''}<br><span class="tl-time">${ago(q.time)} · depth ${q.depth_km} km</span>`}); });
+  (((DATA.rivers||{}).stations)||[]).filter(s=>s.level==='danger'||s.level==='warning').forEach(s=>
+    items.push({time:null, cls:'river',
+      html:`<b>🌊 ${esc(s.name)}</b> — ${esc(s.status)}<br><span class="tl-time">${t('srcDhmLine')}: DHM · ${esc(s.river||'')}</span>`}));
+  (DATA.incidents||[]).forEach(e=>{
+    const lv = {Red:'emergency', Orange:'warning', Green:'advisory'}[e.alert_level];
+    items.push({time:e.from, cls:'sev-'+(lv||'watch'),
+      html:`<b>🛰️ ${esc(e.name||e.event_type)}</b> <span class="badge live">GDACS</span><br><span class="tl-time">${ago(e.from)} · ${esc(e.alert_level||'')} · <a href="${esc(e.report_url||'#')}" target="_blank">GDACS ${t('report')}</a></span>`}); });
+  items.sort((a,b)=> (b.time||'9999').localeCompare(a.time||'9999'));
+  const el = document.getElementById('timeline');
+  document.getElementById('tlCount').textContent = items.length;
+  el.innerHTML = items.length ? items.slice(0,18).map(i=>
+    `<div class="tl-item ${i.cls}"><div class="tl-card">${i.html}</div></div>`).join('')
+    : `<div class="card">${t('noEvents')}</div>`;
 }
 
+/* ---------- risk table ---------- */
+let RISK_FILTER = 'attention';
+function setRiskFilter(f){ RISK_FILTER=f;
+  document.getElementById('fAttention').classList.toggle('active', f==='attention');
+  document.getElementById('fAll').classList.toggle('active', f==='all');
+  renderRisk();
+}
+function renderRisk(){
+  const rows = (DATA.risk||[]).filter(r=>RISK_FILTER==='all' || ['moderate','high','critical'].includes(r.overall));
+  document.getElementById('riskCount').textContent = RISK_FILTER==='all' ? `${rows.length} / ${DATA.risk.length}` : `${rows.length}`;
+  const maxRain = Math.max(1, ...(DATA.risk||[]).map(r=>r.rain_72h_mm||0));
+  document.getElementById('riskBody').innerHTML = rows.map(r=>{
+    const gauge = r.river_station ? esc(r.river_station.split(' (')[0]) : '—';
+    const ovBadge = r.river_override ? ` <span class="badge live">🌊${esc(r.river_override)}</span>` : '';
+    const rain = r.rain_72h_mm==null ? '—' :
+      `<b>${r.rain_72h_mm} mm</b><div class="rainbar"><div style="width:${Math.round(100*r.rain_72h_mm/maxRain)}%"></div></div>
+       <small style="color:var(--muted)">max ${r.max_hourly_mm??'—'}/h</small>`;
+    return `<tr><td><b>${esc(cityName(r.city))}</b></td><td>${rain}</td>
+    <td><span class="lvl ${r.flood}">${r.flood}</span></td>
+    <td><span class="lvl ${r.landslide}">${r.landslide}</span></td>
+    <td><span class="lvl ${r.seismic}">${r.seismic}</span></td>
+    <td style="font-size:.8rem;">${gauge}${ovBadge}</td>
+    <td><span class="lvl ${r.overall}">${esc(LANG==='ne'?r.overall_ne:r.overall)}</span></td></tr>`;}).join('');
+}
+
+/* ---------- GLOF ---------- */
+function renderGlof(){
+  const s = DATA.glofSummary;
+  if(s) document.getElementById('glofSummary').innerHTML =
+    `<b>6</b> ${LANG==='ne'?'प्राथमिकता हिमताल — वास्तविक-समय निगरानी रजिस्ट्री':'priority glacial lakes — live watch registry'} ·
+     <span style="color:var(--muted)">${t('source')}: ICIMOD + UNDP + ${LANG==='ne'?'नेपाल सरकार (२०२६)':'Government of Nepal (2026)'}</span>`;
+  document.getElementById('glofGrid').innerHTML = (DATA.glof||[]).map(l=>`
+    <div class="card glof-card st-${l.level||'watch'}">
+      <h3 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;">
+        🏔️ ${esc(LANG==='ne'?l.name_ne:l.name_en)} <span class="badge verified">Verified</span></h3>
+      <div><span class="lvl ${(l.level==='warning')?'high':'moderate'}">${esc(LANG==='ne'?l.status_ne:l.status_en)}</span></div>
+      <div style="font-size:.85rem;margin-top:8px;">${esc(LANG==='ne'?l.fact_ne:l.fact_en)}</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:6px;">📍 ${esc(LANG==='ne'?l.district_ne:l.district_en)} · ${esc(l.basin_en)}</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:2px;">${t('downstream')}: ${esc(l.downstream_en)}</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:2px;">🛰️ ${satLine(l.id)}</div></div>`).join('');
+}
+function satLine(id){
+  const sc = (DATA.scenes||[]).find(x=>x.lake_id===id);
+  if(!sc) return '';
+  return sc.scene ? `${t('lastClearView')}: ${(sc.sensed||'').slice(0,10)}` : t('noClearView');
+}
+
+/* ---------- rivers ---------- */
+function renderRivers(){
+  const body = document.getElementById('riverBody'), note = document.getElementById('riverNote');
+  const stations = ((DATA.rivers||{}).stations)||[];
+  document.getElementById('riverCount').textContent = stations.length;
+  if(!DATA.rivers){ body.innerHTML=''; note.textContent = t('noRivers'); return; }
+  note.textContent = `${t('srcDhmLine')}: DHM hydrology.gov.np · ${DATA.rivers.station_count} ${t('stations')}`;
+  const lvlc = {danger:'high', warning:'moderate', normal:'low'};
+  body.innerHTML = stations.map(st=>{
+    const wl = parseFloat(st.water_level), warn = parseFloat(st.warning_level), dang = parseFloat(st.danger_level);
+    let bar = '';
+    if(isFinite(wl) && isFinite(dang) && dang>0){
+      const pct = Math.min(100, Math.round(100*wl/(dang*1.15)));
+      const wPct = isFinite(warn) ? Math.min(100, Math.round(100*warn/(dang*1.15))) : null;
+      const dPct = Math.round(100*dang/(dang*1.15));
+      const fillCol = st.level==='danger' ? 'var(--critical)' : st.level==='warning' ? 'var(--high)' : '#38bdf8';
+      bar = `<div class="levelbar"><div class="fill" style="width:${pct}%;background:${fillCol}"></div>` +
+        (wPct!=null?`<div class="mark" style="left:${wPct}%" title="${t('warnMark')}"></div>`:'') +
+        `<div class="mark danger" style="left:${dPct}%" title="${t('dangerMark')}"></div></div>`;
+    }
+    const trendKey = {rising:'rising', falling:'falling', steady:'steady'}[String(st.trend||'').toLowerCase()];
+    const trendTxt = trendKey ? (trendKey==='rising'?'↗ ':trendKey==='falling'?'↘ ':'→ ')+t(trendKey) : (st.trend||'—');
+    return `<tr><td><b>${esc(st.name)}</b></td>
+      <td>${st.water_level==null?'—':esc(st.water_level)}${bar}</td>
+      <td><span class="lvl ${lvlc[st.level]||'low'}">${esc(st.status)}</span></td>
+      <td style="font-size:.82rem;">${esc(trendTxt)}</td>
+      <td style="font-size:.8rem;">${esc(st.river||'')}${st.basin?' · '+esc(st.basin):''}</td></tr>`;}).join('');
+}
+
+/* ---------- forecast ---------- */
 function wmo(code){
   const m = {0:['☀️','घमाइलो'],1:['🌤️','आंशिक बादल'],2:['⛅','बादल'],3:['☁️','बादलले ढाकेको'],
     45:['🌫️','कुहिरो'],48:['🌫️','कुहिरो'],51:['🌦️','सिमसिम'],53:['🌦️','सिमसिम'],55:['🌧️','सिमसिम'],
@@ -341,9 +547,9 @@ function renderCityPills(){
     (provs[p] = provs[p]||[]).push(w.city);
   });
   sel.innerHTML = Object.keys(provs).sort().map(p=>
-    `<optgroup label="${p}">` + provs[p]
+    `<optgroup label="${esc(p)}">` + provs[p]
       .sort((a,b)=>cityName(a).localeCompare(cityName(b)))
-      .map(c=>`<option value="${c.id}" ${c.id===DATA.city?'selected':''}>${cityName(c)}</option>`).join('') +
+      .map(c=>`<option value="${c.id}" ${c.id===DATA.city?'selected':''}>${esc(cityName(c))}</option>`).join('') +
     `</optgroup>`).join('');
 }
 function selectCity(id){ DATA.city=id; renderForecast(); }
@@ -362,56 +568,11 @@ function renderForecast(){
   document.getElementById('forecastBody').innerHTML = h;
 }
 
-let RISK_FILTER = 'attention';
-function renderRisk(){
-  document.getElementById('riskToggle').textContent = t(RISK_FILTER==='all'?'showAttention':'showAll');
-  const rows = (DATA.risk||[]).filter(r=>RISK_FILTER==='all' || ['moderate','high','critical'].includes(r.overall));
-  document.getElementById('riskCount').textContent =
-    RISK_FILTER==='all' ? `${rows.length} / ${DATA.risk.length}` : `${rows.length} ${t('needAttention')}`;
-  document.getElementById('riskBody').innerHTML = rows.map(r=>{
-    const gauge = r.river_station ? r.river_station.split(' (')[0] : '—';
-    const ovBadge = r.river_override ? ` <span class="badge live" title="${LANG==='ne'?'DHM गेजबाट':'from DHM gauge'}">🌊${r.river_override}</span>` : '';
-    const rainDetail = r.rain_72h_mm==null ? '—' :
-      `${r.rain_72h_mm} mm${r.max_hourly_mm!=null?`<br><small style="color:var(--muted)">max ${r.max_hourly_mm}/h</small>`:''}${r.antecedent_7d_mm!=null?`<br><small style="color:var(--muted)">7d: ${r.antecedent_7d_mm}</small>`:''}`;
-    return `
-    <tr><td><b>${cityName(r.city)}</b></td><td>${rainDetail}</td>
-    <td><span class="lvl ${r.flood}">${r.flood}</span></td>
-    <td><span class="lvl ${r.landslide}">${r.landslide}</span></td>
-    <td><span class="lvl ${r.seismic}">${r.seismic}</span></td>
-    <td style="font-size:.8rem;">${gauge}${ovBadge}</td>
-    <td><span class="lvl ${r.overall}">${LANG==='ne'?r.overall_ne:r.overall}</span></td></tr>`;}).join('');
-}
-function toggleRiskFilter(){
-  RISK_FILTER = RISK_FILTER==='all' ? 'attention' : 'all';
-  renderRisk();
-}
-
-function renderGlof(){
-  const s = DATA.glofSummary;
-  if(s) document.getElementById('glofSummary').innerHTML =
-    `<b>47</b> ${LANG==='ne'?'सम्भावित खतरनाक हिमताल':'potentially dangerous glacial lakes'} —
-     ${LANG==='ne'?'नेपालमा':'in Nepal'} <b>21</b> · ${LANG==='ne'?'तिब्बतमा':'in Tibet'} <b>25</b> · ${LANG==='ne'?'भारतमा':'in India'} <b>1</b> ·
-     ${LANG==='ne'?'कोशी':'Koshi'} <b>42</b> · ${LANG==='ne'?'गण्डकी':'Gandaki'} <b>3</b> · ${LANG==='ne'?'कर्णाली':'Karnali'} <b>2</b> ·
-     ${LANG==='ne'?'सन् १९७७ यता':'since 1977'} <b>26+</b> ${LANG==='ne'?'हिमताल विस्फोट':'GLOFs recorded'} ·
-     <span style="color:var(--muted)">${LANG==='ne'?'स्रोत':'Source'}: ICIMOD + UNDP + ${LANG==='ne'?'नेपाल सरकार (२०२६)':'Government of Nepal (2026)'}</span>`;
-  document.getElementById('glofGrid').innerHTML = (DATA.glof||[]).map(l=>`
-    <div class="card"><h3>${LANG==='ne'?l.name_ne:l.name_en} <span class="badge verified">Verified</span></h3>
-    <div><span class="lvl ${l.level==='warning'?'high':'moderate'}">${LANG==='ne'?l.status_ne:l.status_en}</span></div>
-    <div style="font-size:.85rem;margin-top:8px;">${LANG==='ne'?l.fact_ne:l.fact_en}</div>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:6px;">📍 ${LANG==='ne'?l.district_ne:l.district_en} · ${l.basin_en}${l.coords==='approximate'?' · ~approx':''}</div>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:2px;">${t('downstream')}: ${l.downstream_en}</div>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:2px;">🛰️ ${satLine(l.id)}</div></div>`).join('');
-}
-function satLine(id){
-  const sc = (DATA.scenes||[]).find(x=>x.lake_id===id);
-  if(!sc) return '';
-  return sc.scene ? `${t('lastClearView')}: ${(sc.sensed||'').slice(0,10)}` : t('noClearView');
-}
+/* ---------- shelters / guides / sources ---------- */
 function renderShelters(){
   document.getElementById('shelterGrid').innerHTML = (DATA.shelters||[]).map(s=>`
-    <div class="card"><h3>⛺ ${LANG==='ne'?s.name_ne:s.name_en} <span class="badge verified">Verified</span></h3>
-    <div style="font-size:.88rem;">${LANG==='ne'?s.district_ne:s.district_en}</div>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:6px;">${s.fact_en}</div></div>`).join('');
+    <div class="card"><h3 style="font-size:.85rem;margin-bottom:6px;">⛺ ${esc(LANG==='ne'?s.name_ne:s.name_en)}</h3>
+    <div style="font-size:.82rem;color:var(--muted);">${esc(LANG==='ne'?s.district_ne:s.district_en)}</div></div>`).join('');
 }
 const GUIDES = {
   earthquake:{en:'🌍 Earthquake',ne:'🌍 भूकम्प',items_en:['Drop, cover and hold on','Move to open ground after shaking','Expect aftershocks — check gas/power'],
@@ -423,44 +584,28 @@ const GUIDES = {
   glof:{en:'🏔️ GLOF',ne:'🏔️ हिमताल विस्फोट',items_en:['Run uphill immediately on siren','Do not wait for confirmation','Warn others as you move'],
     items_ne:['साइरन बज्नासाथ उकालो दौडनुहोस्','पुष्टिको पर्खाइ नगर्नुहोस्','जाँदाजाँदै अरूलाई खबर गर्नुहोस्']}
 };
-function renderRivers(){
-  const body = document.getElementById('riverBody'), note = document.getElementById('riverNote');
-  if(!DATA.rivers){ body.innerHTML=''; note.textContent = t('noRivers'); return; }
-  note.textContent = `${t('srcDhmLine')}: DHM hydrology.gov.np · ${DATA.rivers.station_count} ${t('stations')}`;
-  const lvlc = {danger:'high', warning:'moderate', normal:'low'};
-  body.innerHTML = (DATA.rivers.stations||[]).map(st=>`
-    <tr><td><b>${st.name}</b></td><td>${st.water_level==null?'—':st.water_level}</td>
-    <td><span class="lvl ${lvlc[st.level]||'low'}">${st.status}</span></td>
-    <td style="font-size:.8rem;">${st.river||''} ${st.basin?'· '+st.basin:''}</td></tr>`).join('');
-}
-function renderIncidents(){
-  const el = document.getElementById('incidentGrid');
-  if(!DATA.incidents.length){ el.innerHTML = `<div class="card">${t('noIncidents')}</div>`; return; }
-  const ac = {Red:'high', Orange:'moderate', Green:'low'};
-  el.innerHTML = DATA.incidents.map(e=>`
-    <div class="card"><h3>🚨 ${e.name||e.event_type} <span class="badge live">Live</span></h3>
-    <div><span class="lvl ${ac[e.alert_level]||'low'}">${e.alert_level||'—'}</span></div>
-    <div style="font-size:.82rem;color:var(--muted);margin-top:6px;">${(e.from||'').slice(0,10)} → ${(e.to||'').slice(0,10)}</div>
-    ${e.report_url?`<div style="margin-top:6px;"><a href="${e.report_url}" target="_blank">GDACS ${t('report')}</a></div>`:''}</div>`).join('');
+function renderGuides(){
+  document.getElementById('guideGrid').innerHTML = Object.values(GUIDES).map(g=>`
+    <div class="card guide"><h4>${LANG==='ne'?g.ne:g.en}</h4>
+    <ol>${(LANG==='ne'?g.items_ne:g.items_en).map(x=>`<li>${esc(x)}</li>`).join('')}</ol></div>`).join('');
 }
 function renderSrcHealth(){
   const el = document.getElementById('srcHealth'); if(!el) return;
   if(!DATA.srcHealth){ el.textContent = '—'; return; }
   const names = {usgs:'USGS', open_meteo:'Open-Meteo', met_norway:'MET', nemrc:'NEMRC', gdacs:'GDACS', copernicus:'Sentinel-2', bipad:'BIPAD', dhm_ws:'DHM WS'};
   el.innerHTML = Object.entries(DATA.srcHealth.sources).map(([k,v])=>
-    `<span title="${k}: ${v.reachable?'ok':'FAIL'} ${v.http||v.error||''}" style="margin-right:8px;white-space:nowrap;">${v.reachable?'🟢':'🔴'} ${names[k]||k}</span>`).join('');
-}
-function renderGuides(){
-  document.getElementById('guideGrid').innerHTML = Object.values(GUIDES).map(g=>`
-    <div class="card guide"><h4>${LANG==='ne'?g.ne:g.en}</h4>
-    <ol>${(LANG==='ne'?g.items_ne:g.items_en).map(x=>`<li>${x}</li>`).join('')}</ol></div>`).join('');
+    `<span title="${esc(k)}: ${v.reachable?'ok':'FAIL'} ${esc(v.http||v.error||'')}" style="margin-right:8px;white-space:nowrap;">${v.reachable?'🟢':'🔴'} ${names[k]||esc(k)}</span>`).join('');
 }
 
-function renderAll(){ renderStats(); renderBanner(); renderAlerts(); renderCityPills(); renderForecast();
+/* ---------- boot ---------- */
+function renderAll(){
+  renderHero(); renderCityPills(); renderForecast();
   renderRisk(); renderGlof(); renderShelters(); renderGuides(); renderMap();
-  renderRivers(); renderIncidents(); renderSrcHealth();
-  document.getElementById('updatedAt').textContent = t('updated')+': '+new Date().toLocaleString(); }
-
+  renderRivers(); renderTimeline(); renderSrcHealth();
+  document.getElementById('updatedAt').textContent = t('updated')+': '+new Date().toLocaleString();
+  document.getElementById('fAttention').textContent = t('showAttention');
+  document.getElementById('fAll').textContent = t('showAll');
+}
 async function boot(){
   initMap();
   try{
@@ -484,10 +629,8 @@ async function boot(){
   renderAll();
   setInterval(async()=>{ try{
     const [ov, al] = await Promise.all([get('/api/overview'), get('/api/alerts')]);
-    DATA.overview=ov; DATA.alerts=al.alerts; renderStats(); renderBanner(); renderAlerts();
+    DATA.overview=ov; DATA.alerts=al.alerts; renderHero(); renderTimeline();
   }catch(e){} }, 600000);
-  setInterval(()=>{ document.getElementById('clock').textContent =
-    new Date().toLocaleString('en-GB',{timeZone:'Asia/Kathmandu',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'}); },1000);
 }
 function tick(){ const el=document.getElementById('clock'); if(el) el.textContent =
   new Date().toLocaleString('en-GB',{timeZone:'Asia/Kathmandu',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'}); }
